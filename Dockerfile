@@ -6,7 +6,7 @@ ENV CGO_ENABLED=0
 
 COPY . .
 
-RUN go build -o /build ./internal/cmd \
+RUN go build -o /build ./cmd/app \
     && go clean -cache -modcache
 
 FROM alpine:3.21

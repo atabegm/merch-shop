@@ -2,23 +2,17 @@ package main
 
 import (
 	"avito/internal/apiserver"
-	"flag"
+	"context"
 	"log"
 	"os"
 
 	"github.com/goccy/go-yaml"
 )
 
-var configPath string
-
-func init() {
-	flag.StringVar(&configPath, "config-path", "configs/config.yaml", "path to config file")
-}
-
 func main() {
-	flag.Parse()
 	cfg := apiserver.NewConfig()
-	data, err := os.ReadFile(configPath)
+	dbCfg := apiserver.NewDBConfig()
+	data, err := os.ReadFile("configs/config.yaml")
 	if err != nil {
 		log.Println("fail to read config file", err)
 	}
@@ -26,5 +20,10 @@ func main() {
 	err = yaml.Unmarshal(data, cfg)
 	if err != nil {
 		log.Println("fail to unmarshal", err)
+	}
+
+	err = apiserver.Start(context.TODO(), dbCfg, cfg)
+	if err != nil {
+		log.Println("failed to start", err)
 	}
 }

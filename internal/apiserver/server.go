@@ -1,6 +1,8 @@
 package apiserver
 
 import (
+	"avito/internal/model"
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -32,9 +34,26 @@ func newServer() *server {
 }
 
 func (s *server) configureRouter() {
-	s.router.HandleFunc("/", s.handleHello)
 }
 
-func (s *server) handleHello(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Hello"))
+func (s *server) Registration(w http.ResponseWriter, r *http.Request) http.HandlerFunc {
+	type request struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		req := &request{}
+		if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+			http.Error(w, "error with decode", http.StatusBadRequest)
+			return
+		}
+
+		u := model.User{
+			Email:        req.Email,
+			HashPassword: req.Password,
+		}
+
+		
+	}
 }

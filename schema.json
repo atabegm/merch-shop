@@ -192,7 +192,7 @@
   ],
   "basePath": "/",
   "definitions": {
-    "InfoResponse": {
+    "InfoResponse":   {
       "type": "object",
       "properties": {
         "coins": {
@@ -218,7 +218,7 @@
         "coinHistory": {
           "type": "object",
           "properties": {
-            "received": {
+            "received": { 
               "type": "array",
               "items": {
                 "type": "object",

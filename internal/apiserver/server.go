@@ -1,9 +1,7 @@
 package apiserver
 
 import (
-	"avito/internal/model"
-	"encoding/json"
-	"net/http"
+	"avito/internal/repository/users"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -18,14 +16,16 @@ const (
 )
 
 type server struct {
-	router *mux.Router
-	logger *logrus.Logger
+	router    *mux.Router
+	usersRepo *users.Repo
+	logger    *logrus.Logger
 }
 
-func newServer() *server {
+func newServer(router *mux.Router, usersRepo *users.Repo, logger *logrus.Logger) *server {
 	srv := &server{
-		router: mux.NewRouter(),
-		logger: logrus.New(),
+		router:    router,
+		usersRepo: usersRepo,
+		logger:    logger,
 	}
 
 	srv.configureRouter()
@@ -34,26 +34,4 @@ func newServer() *server {
 }
 
 func (s *server) configureRouter() {
-}
-
-func (s *server) Registration(w http.ResponseWriter, r *http.Request) http.HandlerFunc {
-	type request struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		req := &request{}
-		if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-			http.Error(w, "error with decode", http.StatusBadRequest)
-			return
-		}
-
-		u := model.User{
-			Email:        req.Email,
-			HashPassword: req.Password,
-		}
-
-		
-	}
 }

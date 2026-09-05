@@ -7,10 +7,6 @@ CREATE TABLE users(
     coins bigint default 1000
 );
 
-INSERT INTO users(username, email, hash_password, coins) VALUES (
-
-)
-
 CREATE TABLE merch (
     id bigserial not null primary key,
     name varchar not null,
@@ -31,6 +27,7 @@ INSERT INTO merch (name, price) VALUES
 
 CREATE TABLE purchases (
     id bigserial not null primary key,
+    email varchar not null,
     user_id bigint references users(id),
     price bigint not null  
 );

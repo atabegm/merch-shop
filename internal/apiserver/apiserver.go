@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"avito/internal/api/auth"
 	"avito/internal/api/info"
 	coinstransfer "avito/internal/repository/coins_transfer"
 	"avito/internal/repository/users"
@@ -15,7 +16,7 @@ import (
 )
 
 // Start server func create.
-func Start(ctx context.Context, dbCfg *DbConfig, config *Config) error {
+func Start(ctx context.Context, dbCfg *DBConfig, config *Config) error {
 	logger := logrus.New()
 	conn, err := openDB(ctx, dbCfg)
 	if err != nil {
@@ -28,8 +29,12 @@ func Start(ctx context.Context, dbCfg *DbConfig, config *Config) error {
 	userRepo := users.New(conn, logger)
 	userHandler := info.New(&userRepo, &coinsTransferRepo, logger)
 
+	jwtSecret := "secret key"
+
+	authHandler := auth.New(&userRepo, logger, jwtSecret)
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/info", userHandler.Info)
+	mux.HandleFunc("GET /api/info", userHandler.Info)
+	mux.HandleFunc("POST /api/auth", authHandler.Auth)
 	srv := &http.Server{
 		Addr:              config.BindAddr,
 		Handler:           mux,
@@ -42,7 +47,7 @@ func Start(ctx context.Context, dbCfg *DbConfig, config *Config) error {
 	return srv.ListenAndServe()
 }
 
-func openDB(ctx context.Context, dbCfg *DbConfig) (*pgxpool.Pool, error) {
+func openDB(ctx context.Context, dbCfg *DBConfig) (*pgxpool.Pool, error) {
 	config, err := pgxpool.ParseConfig("")
 	if err != nil {
 		return nil, fmt.Errorf("openDB config parse  error:%w", err)

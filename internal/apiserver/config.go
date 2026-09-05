@@ -2,13 +2,15 @@ package apiserver
 
 // Config object create.
 
+// Config create.
 type Config struct {
 	BindAddr    string `yaml:"bind_addr"`
 	LogLevel    string `yaml:"log_level"`
 	DatabaseURL string `yaml:"database_url"`
 }
 
-type DbConfig struct {
+// DBConfig create.
+type DBConfig struct {
 	PgUser     string `env:"PGUSER"`
 	PgPassword string `env:"PGPASSWORD"`
 	PgHost     string `env:"PGHOST"`
@@ -17,8 +19,9 @@ type DbConfig struct {
 	PgSSLMode  string `env:"PGSSLMODE"`
 }
 
-func NewDBConfig() *DbConfig {
-	dbCfg := &DbConfig{
+// NewDBConfig create.
+func NewDBConfig() *DBConfig {
+	dbCfg := &DBConfig{
 		PgUser:     "postgres",
 		PgPassword: "password",
 		PgHost:     "localhost",

@@ -18,4 +18,3 @@ func New(pool *pgxpool.Pool, logger *logrus.Logger) Repo {
 		logger: logger,
 	}
 }
-

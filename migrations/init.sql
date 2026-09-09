@@ -14,7 +14,7 @@ CREATE TABLE merch (
 ); 
 
 INSERT INTO merch (name, price) VALUES 
-    ('t_shirt', 80), 
+    ('t-shirt', 80), 
     ('cup', 20),
     ('book', 50),
     ('pen', 10),
@@ -27,10 +27,10 @@ INSERT INTO merch (name, price) VALUES
 
 CREATE TABLE purchases (
     id bigserial not null primary key,
-    email varchar not null,
     user_id bigint references users(id),
+    merch_id bigint references merch(id),
     price bigint not null  
-);
+);  
 
 CREATE TABLE coins_transfers (
     id bigserial not null primary key,
@@ -39,11 +39,6 @@ CREATE TABLE coins_transfers (
     amount bigint not null
 );
 
-CREATE TABLE purchases_merch (
-    purchase_id bigint references purchases(id),
-    merch_id bigint references merch(id),
-    amount bigint not null
-);
 
 -- users:
 -- (1, ibrahim, 100)

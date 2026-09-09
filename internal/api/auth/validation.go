@@ -8,7 +8,7 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 )
 
-func (r *Request) Validate(ctx context.Context) error {
+func (r *AuthRequest) Validate(ctx context.Context) error {
 	if err := validation.ValidateStructWithContext(
 		ctx,
 		r,

@@ -2,14 +2,14 @@ package info
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
-// Response object create.
-type Response struct {
+// InfoResponse object create.
+type InfoResponse struct {
 	Coins       int64       `json:"coins"`
-	CoinHistory CoinHistory `json:"coin_history"`
+	Inventory   []Inventory `json:"inventory"`
+	CoinHistory CoinHistory `json:"coinHistory"`
 }
 
 // CoinHistory object create.
@@ -18,16 +18,21 @@ type CoinHistory struct {
 	Sent     []SentTransaction     `json:"sent"`
 }
 
+type Inventory struct {
+	Type     string `json:"type"`
+	Quantity int64  `json:"quantity"`
+}
+
 // ReceivedTransaction object create.
 type ReceivedTransaction struct {
-	FromUser int64 `json:"from_user"`
-	Amount   int64 `json:"amount"`
+	FromUser string `json:"fromUser"`
+	Amount   int64  `json:"amount"`
 }
 
 // SentTransaction object create.
 type SentTransaction struct {
-	ToUser int64 `json:"to_user"`
-	Amount int64 `json:"amount"`
+	ToUser string `json:"toUser"`
+	Amount int64  `json:"amount"`
 }
 
 // Info handler create.
@@ -35,20 +40,19 @@ func (h *Handler) Info(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	// id := ctx.Value("user_id")
 
-	// userID, ok := id.(int)
+	// userID, ok := id.(int64)
 	// if !ok {
-	// 	h.logger.Println("error with converte")
 	// 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
 	// 	return
 	// }
-	userID := 1
+
+	userID := int64(1)
 
 	usr, err := h.UserRepo.GetByID(ctx, userID)
 	if err != nil {
-		h.logger.Println("error with user repo", err)
+		http.Error(w, "error with get user", http.StatusInternalServerError)
+		return
 	}
-
-	fmt.Printf("%+v\n", usr)
 
 	coins := usr.Coins
 
@@ -59,35 +63,77 @@ func (h *Handler) Info(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	receivedTransfer := make([]ReceivedTransaction, 0)
-	senderTransfer := make([]SentTransaction, 0)
+	receivedTransactions := make([]ReceivedTransaction, 0)
+	senderTransactions := make([]SentTransaction, 0)
 
 	for _, tr := range transfers {
+		if tr.ReceiverID == usr.ID {
+			sender, err := h.UserRepo.GetByID(ctx, tr.SenderID)
+			if err != nil {
+				http.Error(w, "error with get receiver", http.StatusInternalServerError)
+				return
+			}
+			receivedTr := ReceivedTransaction{
+				FromUser: sender.Username,
+				Amount:   tr.Amount,
+			}
+
+			receivedTransactions = append(receivedTransactions, receivedTr)
+		}
+
 		if tr.SenderID == usr.ID {
+			receiver, err := h.UserRepo.GetByID(ctx, tr.ReceiverID)
+			if err != nil {
+				http.Error(w, "error with get sender", http.StatusInternalServerError)
+				return
+			}
+
 			senderTr := SentTransaction{
-				ToUser: tr.ReceiverID,
+				ToUser: receiver.Username,
 				Amount: tr.Amount,
 			}
 
-			senderTransfer = append(senderTransfer, senderTr)
-		}
-
-		if tr.ReceiverID == usr.ID {
-			receivedTr := ReceivedTransaction{
-				FromUser: tr.SenderID,
-				Amount:   tr.Amount,
-			}
-			receivedTransfer = append(receivedTransfer, receivedTr)
+			senderTransactions = append(senderTransactions, senderTr)
 		}
 	}
 
 	var coinHistory CoinHistory
 
-	coinHistory.Received = receivedTransfer
-	coinHistory.Sent = senderTransfer
+	coinHistory.Received = receivedTransactions
+	coinHistory.Sent = senderTransactions
 
-	err = json.NewEncoder(w).Encode(Response{
+	purchases, err := h.PurchasesRepo.GetByUserID(ctx, usr.ID)
+	if err != nil {
+		http.Error(w, "error with get purchases", http.StatusInternalServerError)
+		return
+	}
+
+	inventoryMap := make(map[string]int64)
+
+	for _, purch := range purchases {
+		merch, err := h.MerchRepo.GetByID(ctx, purch.MerchID)
+		if err != nil {
+			http.Error(w, "error with get merch", http.StatusInternalServerError)
+			return
+		}
+
+		inventoryMap[merch.Name]++
+	}
+
+	inventory := make([]Inventory, 0)
+
+	for name, quantity := range inventoryMap {
+		inventory = append(inventory, Inventory{
+			Type:     name,
+			Quantity: quantity,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	err = json.NewEncoder(w).Encode(InfoResponse{
 		CoinHistory: coinHistory,
+		Inventory:   inventory,
 		Coins:       coins,
 	})
 	if err != nil {

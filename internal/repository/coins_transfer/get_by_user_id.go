@@ -6,10 +6,8 @@ import (
 	"fmt"
 )
 
-// SELECT * FROM coins_transfer WHERE sender_id = $1 OR receiver_id = $1, userID
-
 // GetByUserID - find transactions.
-func (r *Repo) GetByUserID(ctx context.Context, id int) ([]model.Transaction, error) {
+func (r *Repo) GetByUserID(ctx context.Context, id int64) ([]model.Transaction, error) {
 	rows, err := r.pool.Query(
 		ctx,
 		"SELECT id, receiver_id, sender_id, amount FROM coins_transfers WHERE sender_id = $1 OR receiver_id = $1", id,

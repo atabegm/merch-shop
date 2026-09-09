@@ -15,7 +15,7 @@ import (
 func (h *Handler) Auth(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var req Request
+	var req AuthRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "error with decode", http.StatusBadRequest)
@@ -72,7 +72,7 @@ func (h *Handler) Auth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(&Response{
+	if err := json.NewEncoder(w).Encode(&AuthResponse{
 		Token: tokenSigned,
 	}); err != nil {
 		http.Error(w, "error with response", http.StatusInternalServerError)

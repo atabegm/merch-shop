@@ -3,9 +3,13 @@ package apiserver
 import (
 	"avito/internal/api/auth"
 	"avito/internal/api/info"
+	sendcoin "avito/internal/api/send_coin"
 	coinstransfer "avito/internal/repository/coins_transfer"
+	"avito/internal/repository/merch"
+	"avito/internal/repository/purchases"
 	"avito/internal/repository/users"
 	"context"
+	"time"
 
 	"fmt"
 	"net/http"
@@ -13,6 +17,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
+)
+
+const (
+	defaultReadTimeout       = 5 * time.Second
+	defaultReadHeaderTimeout = 6 * time.Second
+	defaultWriteTimeout      = 10 * time.Second
+	defaultIdleimeout        = 7 * time.Second
 )
 
 // Start server func create.
@@ -27,14 +38,20 @@ func Start(ctx context.Context, dbCfg *DBConfig, config *Config) error {
 
 	coinsTransferRepo := coinstransfer.New(conn, logger)
 	userRepo := users.New(conn, logger)
-	userHandler := info.New(&userRepo, &coinsTransferRepo, logger)
+	purchasesRepo := purchases.New(conn, logger)
+	merchRepo := merch.New(conn, logger)
 
 	jwtSecret := "secret key"
+	userHandler := info.New(&userRepo, &coinsTransferRepo, &purchasesRepo, &merchRepo,
+		logger)
 
 	authHandler := auth.New(&userRepo, logger, jwtSecret)
+	sendCoinHandler := sendcoin.New(&userRepo, &coinsTransferRepo, logger)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/info", userHandler.Info)
 	mux.HandleFunc("POST /api/auth", authHandler.Auth)
+	mux.HandleFunc("POST /api/sendCoin", sendCoinHandler.Send)
 	srv := &http.Server{
 		Addr:              config.BindAddr,
 		Handler:           mux,
@@ -72,73 +89,3 @@ func openDB(ctx context.Context, dbCfg *DBConfig) (*pgxpool.Pool, error) {
 
 	return pool, nil
 }
-
-// type modelsTransfer struct {
-// 	id         string
-// 	senderId   string
-// 	receiverId string
-// 	amount     int
-// 	createdAt  time.Time
-// }
-
-// type handlerTransfer struct {
-// 	amount    int
-// 	direction string // out, in
-// 	person    string
-// }
-
-// func FromModelToHandler(mList []modelsTransfer, id string) []handlerTransfer {
-// 	htList := make([]handlerTransfer, 0)
-// 	_ = htList
-// 	for _, t := range mList {
-// 		ht := handlerTransfer{
-// 			amount: t.amount,
-// 		}
-// 		if id == t.receiverId {
-// 			ht.direction = "in"
-// 			ht.person = t.senderId
-// 		}
-// 		if id == t.senderId {
-// 			ht.direction = "out"
-// 			ht.person = t.receiverId
-// 		}
-// 	}
-
-// 	return nil
-// }
-
-// type TransferService interface {
-// 	GetByUserID(ctx context.Context, userID string) ([]modelsTransfer, error)
-// }
-
-// type Handler struct {
-// 	transferService TransferService
-// }
-
-// func (h *Handler) TransfersByUserID(w http.ResponseWriter, r *http.Request) {
-// 	id := r.PathValue("id")               // "users/:id/tranfers/:direction"
-// 	direction := r.PathValue("direction") // "users/:id/tranfers/:direction"
-
-// 	transfers, err := h.transferService.GetByUserID(r.Context(), id)
-// 	if err != nil {
-
-// 	}
-
-// 	allHandlerTransfers := FromModelToHandler(transfers, id)
-
-// 	responseTransfers := make([]handlerTransfer, 0)
-// 	for _, ht := range allHandlerTransfers {
-// 		if ht.direction != direction {
-// 			continue
-// 		}
-// 		responseTransfers = append(responseTransfers, ht)
-// 	}
-
-// 	resp, err := json.Marshal(responseTransfers)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-
-// 	w.WriteHeader(http.StatusOK)
-// 	w.Write(resp)
-// }

@@ -7,7 +7,7 @@ import (
 )
 
 // GetByID TODO.
-func (r *Repo) GetByID(ctx context.Context, id int) (model.User, error) {
+func (r *Repo) GetByID(ctx context.Context, id int64) (model.User, error) {
 	row := r.pool.QueryRow(ctx, "SELECT id, username, email, hash_password, coins FROM users WHERE id = $1", id)
 
 	var usr model.User

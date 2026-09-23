@@ -13,7 +13,6 @@ type Handler struct {
 	jwtSecret []byte
 }
 
-
 // New handler for auth.
 func New(service authservice.Service, logger *logrus.Logger, jwtSecret string) *Handler {
 	return &Handler{

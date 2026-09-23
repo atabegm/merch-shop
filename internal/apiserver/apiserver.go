@@ -2,20 +2,24 @@ package apiserver
 
 import (
 	"avito/internal/api/auth"
+	"avito/internal/api/auth/middleware"
+	"avito/internal/api/buy"
 	"avito/internal/api/info"
 	sendcoin "avito/internal/api/send_coin"
 	coinstransfer "avito/internal/repository/coins_transfer"
 	"avito/internal/repository/merch"
 	"avito/internal/repository/purchases"
 	"avito/internal/repository/users"
-	"context"
-	"time"
-
-	"fmt"
+	authservice "avito/internal/service/auth_service"
+	buyservice "avito/internal/service/buy"
+	sendcoinservice "avito/internal/service/send_coin_service"
 	"net/http"
 
+	"context"
+	"fmt"
+	"time"
+
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 )
 
@@ -23,43 +27,46 @@ const (
 	defaultReadTimeout       = 5 * time.Second
 	defaultReadHeaderTimeout = 6 * time.Second
 	defaultWriteTimeout      = 10 * time.Second
-	defaultIdleimeout        = 7 * time.Second
+	defaultIdleTimeout       = 7 * time.Second
 )
 
-// Start server func create.
-func Start(ctx context.Context, dbCfg *DBConfig, config *Config) error {
-	logger := logrus.New()
+func Start(ctx context.Context, config *Config, dbCfg *DBConfig, logger *logrus.Logger) error {
 	conn, err := openDB(ctx, dbCfg)
 	if err != nil {
-		return err
+		return fmt.Errorf("error with connect with db: %w", err)
 	}
 
-	defer conn.Close()
-
-	coinsTransferRepo := coinstransfer.New(conn, logger)
-	userRepo := users.New(conn, logger)
-	purchasesRepo := purchases.New(conn, logger)
+	usersRepo := users.New(conn, logger)
 	merchRepo := merch.New(conn, logger)
+	purchasesRepo := purchases.New(conn, logger)
+	coinTransfersRepo := coinstransfer.New(conn, logger)
 
-	jwtSecret := "secret key"
-	userHandler := info.New(&userRepo, &coinsTransferRepo, &purchasesRepo, &merchRepo,
-		logger)
+	jwtSecret := "my-secret-key"
 
-	authHandler := auth.New(&userRepo, logger, jwtSecret)
-	sendCoinHandler := sendcoin.New(&userRepo, &coinsTransferRepo, logger)
+	authService := authservice.New(&usersRepo, jwtSecret)
+	buyService := buyservice.New(&purchasesRepo, &merchRepo)
+	sendCoinsService := sendcoinservice.New(&usersRepo, &coinTransfersRepo)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/info", userHandler.Info)
-	mux.HandleFunc("POST /api/auth", authHandler.Auth)
-	mux.HandleFunc("POST /api/sendCoin", sendCoinHandler.Send)
-	srv := &http.Server{
+	authHandler := auth.New(authService, logger, jwtSecret)
+	infoHandler := info.New(&usersRepo, &coinTransfersRepo, &purchasesRepo, &merchRepo, logger)
+	buyHandler := buy.New(buyService, logger)
+	sendCoinHandler := sendcoin.New(sendCoinsService, logger)
+
+	router := http.NewServeMux()
+	router.Handle("GET /api/info", middleware.Auth(http.HandlerFunc(infoHandler.Info), []byte(jwtSecret)))
+	router.Handle("POST /api/buy/{item}", middleware.Auth(http.HandlerFunc(buyHandler.Buy), []byte(jwtSecret)))
+	router.Handle("POST /api/sendCoin", middleware.Auth(http.HandlerFunc(sendCoinHandler.Send), []byte(jwtSecret)))
+	router.HandleFunc("POST /api/auth", authHandler.Auth)
+
+	srv := http.Server{
 		Addr:              config.BindAddr,
-		Handler:           mux,
+		Handler:           router,
 		ReadTimeout:       defaultReadTimeout,
-		ReadHeaderTimeout: defaultReadHeaderTimeout,
 		WriteTimeout:      defaultWriteTimeout,
-		IdleTimeout:       defaultIdleimeout,
+		ReadHeaderTimeout: defaultReadHeaderTimeout,
 	}
+
+	logger.Info("start server")
 
 	return srv.ListenAndServe()
 }
@@ -67,7 +74,7 @@ func Start(ctx context.Context, dbCfg *DBConfig, config *Config) error {
 func openDB(ctx context.Context, dbCfg *DBConfig) (*pgxpool.Pool, error) {
 	config, err := pgxpool.ParseConfig("")
 	if err != nil {
-		return nil, fmt.Errorf("openDB config parse  error:%w", err)
+		return nil, fmt.Errorf("error with pool parse config: %w", err)
 	}
 
 	config.ConnConfig.Host = dbCfg.PgHost
@@ -76,15 +83,10 @@ func openDB(ctx context.Context, dbCfg *DBConfig) (*pgxpool.Pool, error) {
 	config.ConnConfig.User = dbCfg.PgUser
 	config.ConnConfig.Password = dbCfg.PgPassword
 
-	fmt.Println("config user:", dbCfg.PgUser, "config database: ", dbCfg.PgDatabase)
-
 	pool, err := pgxpool.NewWithConfig(ctx, config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open db: %w", err)
-	}
-
-	if err = pool.Ping(ctx); err != nil {
-		return nil, fmt.Errorf("failed to ping db: %w", err)
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("error with ping pool: %w", err)
 	}
 
 	return pool, nil

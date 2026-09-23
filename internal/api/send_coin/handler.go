@@ -1,22 +1,19 @@
 package sendcoin
 
 import (
-	coinstransfer "avito/internal/repository/coins_transfer"
-	"avito/internal/repository/users"
+	sendcoinservice "avito/internal/service/send_coin_service"
 
 	"github.com/sirupsen/logrus"
 )
 
 type Handler struct {
-	UserRepo          *users.Repo
-	CoinsTransferRepo *coinstransfer.Repo
-	logger            *logrus.Logger
+	Service sendcoinservice.Service
+	logger  *logrus.Logger
 }
 
-func New(userRepo *users.Repo, coinsTransfer *coinstransfer.Repo, logger *logrus.Logger) Handler {
-	return Handler{
-		UserRepo:          userRepo,
-		CoinsTransferRepo: coinsTransfer,
-		logger:            logger,
+func New(service sendcoinservice.Service, logger *logrus.Logger) *Handler {
+	return &Handler{
+		Service: service,
+		logger:  logger,
 	}
 }

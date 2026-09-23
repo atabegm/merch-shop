@@ -1,6 +1,8 @@
 package info
 
 import (
+	"avito/internal/api/auth/middleware"
+	"avito/internal/api/response"
 	"encoding/json"
 	"net/http"
 )
@@ -38,19 +40,18 @@ type SentTransaction struct {
 // Info handler create.
 func (h *Handler) Info(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	// id := ctx.Value("user_id")
 
-	// userID, ok := id.(int64)
-	// if !ok {
-	// 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
-	// 	return
-	// }
-
-	userID := int64(1)
+	userID, ok := middleware.UserIDFromContext(ctx)
+	if !ok {
+		h.logger.Println(ok)
+		response.Error(w, http.StatusInternalServerError, "not user ID")
+		return
+	}
 
 	usr, err := h.UserRepo.GetByID(ctx, userID)
 	if err != nil {
-		http.Error(w, "error with get user", http.StatusInternalServerError)
+		h.logger.Println(err)
+		response.Error(w, http.StatusInternalServerError, "error with get user")
 		return
 	}
 
@@ -58,8 +59,8 @@ func (h *Handler) Info(w http.ResponseWriter, r *http.Request) {
 
 	transfers, err := h.CoinsTransferRepo.GetByUserID(ctx, userID)
 	if err != nil {
-		h.logger.Println("error with coins transfer repo", err)
-		http.Error(w, "server error", http.StatusInternalServerError)
+		h.logger.Println(err)
+		response.Error(w, http.StatusInternalServerError, "server error")
 		return
 	}
 
@@ -70,7 +71,8 @@ func (h *Handler) Info(w http.ResponseWriter, r *http.Request) {
 		if tr.ReceiverID == usr.ID {
 			sender, err := h.UserRepo.GetByID(ctx, tr.SenderID)
 			if err != nil {
-				http.Error(w, "error with get receiver", http.StatusInternalServerError)
+				h.logger.Println(err)
+				response.Error(w, http.StatusInternalServerError, "error with get receiver")
 				return
 			}
 			receivedTr := ReceivedTransaction{
@@ -84,7 +86,8 @@ func (h *Handler) Info(w http.ResponseWriter, r *http.Request) {
 		if tr.SenderID == usr.ID {
 			receiver, err := h.UserRepo.GetByID(ctx, tr.ReceiverID)
 			if err != nil {
-				http.Error(w, "error with get sender", http.StatusInternalServerError)
+				h.logger.Println(err)
+				response.Error(w, http.StatusInternalServerError, "error with get sender")
 				return
 			}
 
@@ -104,7 +107,8 @@ func (h *Handler) Info(w http.ResponseWriter, r *http.Request) {
 
 	purchases, err := h.PurchasesRepo.GetByUserID(ctx, usr.ID)
 	if err != nil {
-		http.Error(w, "error with get purchases", http.StatusInternalServerError)
+		h.logger.Println(err)
+		response.Error(w, http.StatusInternalServerError, "error with get purchases")
 		return
 	}
 
@@ -113,7 +117,8 @@ func (h *Handler) Info(w http.ResponseWriter, r *http.Request) {
 	for _, purch := range purchases {
 		merch, err := h.MerchRepo.GetByID(ctx, purch.MerchID)
 		if err != nil {
-			http.Error(w, "error with get merch", http.StatusInternalServerError)
+			h.logger.Println(err)
+			response.Error(w, http.StatusInternalServerError, "error with get merch")
 			return
 		}
 
@@ -137,6 +142,8 @@ func (h *Handler) Info(w http.ResponseWriter, r *http.Request) {
 		Coins:       coins,
 	})
 	if err != nil {
-		h.logger.Println("fail to encode. error", err)
+		h.logger.Println(err)
+		response.Error(w, http.StatusInternalServerError, "fail to encode info response")
+		return
 	}
 }

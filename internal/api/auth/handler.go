@@ -1,22 +1,23 @@
 package auth
 
 import (
-	"avito/internal/repository/users"
+	authservice "avito/internal/service/auth_service"
 
 	"github.com/sirupsen/logrus"
 )
 
 // Handler for auth.
 type Handler struct {
-	UserRepo  *users.Repo
+	UserRepo  authservice.Service
 	logger    *logrus.Logger
 	jwtSecret []byte
 }
 
+
 // New handler for auth.
-func New(userRepo *users.Repo, logger *logrus.Logger, jwtSecret string) *Handler {
+func New(service authservice.Service, logger *logrus.Logger, jwtSecret string) *Handler {
 	return &Handler{
-		UserRepo:  userRepo,
+		UserRepo:  service,
 		logger:    logger,
 		jwtSecret: []byte(jwtSecret),
 	}

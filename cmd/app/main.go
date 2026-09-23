@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/goccy/go-yaml"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -22,7 +23,8 @@ func main() {
 		log.Println("fail to unmarshal", err)
 	}
 
-	err = apiserver.Start(context.TODO(), dbCfg, cfg)
+	logger := logrus.New()
+	err = apiserver.Start(context.TODO(), cfg, dbCfg, logger)
 	if err != nil {
 		log.Println("failed to start", err)
 	}

@@ -1,7 +1,11 @@
 package sendcoin
 
 import (
+	"avito/internal/api/auth/middleware"
+	"avito/internal/api/response"
+	sendcoinservice "avito/internal/service/send_coin_service"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	validation "github.com/go-ozzo/ozzo-validation"
@@ -12,46 +16,41 @@ func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
 
 	var req Request
 
-	senderID := int64(1)
+	senderID, ok := middleware.UserIDFromContext(ctx)
+	if !ok {
+		h.logger.Println("error in send handler", ok)
+		response.Error(w, http.StatusInternalServerError, "error with sender ID")
+	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "error with decode requests body", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "error with decode request's body")
 		return
 	}
 
 	if err := validation.ValidateStruct(
 		&req,
-		validation.Field(&req.ToUser, validation.Required), 	
+		validation.Field(&req.ToUser, validation.Required),
 		validation.Field(&req.Amount, validation.Min(int64(1))),
 	); err != nil {
-		http.Error(w, "error with request", http.StatusBadRequest)
+		h.logger.Println(err)
+		response.Error(w, http.StatusBadRequest, "error with request")
 		return
 	}
 
-	receiver, err := h.UserRepo.GetByUsername(ctx, req.ToUser)
-	if err != nil {
-		http.Error(w, "error with get receiver", http.StatusInternalServerError)
-		return
-	}
+	err := h.Service.Send(ctx, senderID, req.ToUser, req.Amount)
 
-	sender, err := h.UserRepo.GetByID(ctx, senderID)
-	if err != nil {
-		http.Error(w, "error with get sender", http.StatusInternalServerError)
+	switch {
+	case errors.Is(err, sendcoinservice.ErrInvalidAmount):
+		response.Error(w, http.StatusBadRequest, "amount must be positive")
 		return
-	}
-
-	if sender.ID == receiver.ID {
-		http.Error(w, "Stop! You cant send coins to yourself", http.StatusBadRequest)
+	case errors.Is(err, sendcoinservice.ErrSelfTrans):
+		response.Error(w, http.StatusBadRequest, "cannot send yourself")
 		return
-	}
-
-	if req.Amount > sender.Coins {
-		http.Error(w, "Error! Amount less then coins u have", http.StatusBadRequest)
+	case errors.Is(err, sendcoinservice.ErrWithEnoughCoins):
+		response.Error(w, http.StatusBadRequest, "not enough coins")
 		return
-	}
-
-	if err := h.CoinsTransferRepo.Send(ctx, sender.ID, receiver.ID, req.Amount); err != nil {
-		http.Error(w, "error with send", http.StatusInternalServerError)
+	case err != nil:
+		response.Error(w, http.StatusInternalServerError, "error with send")
 		return
 	}
 

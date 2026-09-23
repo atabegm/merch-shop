@@ -46,13 +46,11 @@
 
 Пример тела запроса:
 
-```json
 {
   "username": "ivan",
   "password": "secret",
   "email": "ivan@example.com"
 }
-```
 
 Правила:
 

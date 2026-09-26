@@ -1,19 +1,23 @@
 package buy
 
 import (
-	buyservice "avito/internal/service/buy"
+	"context"
 
 	"github.com/sirupsen/logrus"
 )
 
+type BuyService interface {
+	Buy(ctx context.Context, userId int64, itemName string) error
+}
+
 type Handler struct {
-	Service buyservice.Service
+	service BuyService
 	logger  *logrus.Logger
 }
 
-func New(service buyservice.Service, logger *logrus.Logger) *Handler {
+func New(service BuyService, logger *logrus.Logger) *Handler {
 	return &Handler{
-		Service: service,
+		service: service,
 		logger:  logger,
 	}
 }

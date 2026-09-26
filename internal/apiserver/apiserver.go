@@ -44,13 +44,13 @@ func Start(ctx context.Context, config *Config, dbCfg *DBConfig, logger *logrus.
 	jwtSecret := "my-secret-key"
 
 	authService := authservice.New(&usersRepo, jwtSecret)
-	buyService := buyservice.New(&purchasesRepo, &merchRepo)
+	buyService := buyservice.New(&purchasesRepo, &merchRepo, &usersRepo)
 	sendCoinsService := sendcoinservice.New(&usersRepo, &coinTransfersRepo)
 
 	authHandler := auth.New(authService, logger, jwtSecret)
-	infoHandler := info.New(&usersRepo, &coinTransfersRepo, &purchasesRepo, &merchRepo, logger)
-	buyHandler := buy.New(buyService, logger)
 	sendCoinHandler := sendcoin.New(sendCoinsService, logger)
+	buyHandler := buy.New(buyService, logger)
+	infoHandler := info.New(&usersRepo, &coinTransfersRepo, &purchasesRepo, &merchRepo, logger)
 
 	router := http.NewServeMux()
 	router.Handle("GET /api/info", middleware.Auth(http.HandlerFunc(infoHandler.Info), []byte(jwtSecret)))

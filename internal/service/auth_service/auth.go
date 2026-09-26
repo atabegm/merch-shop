@@ -15,7 +15,7 @@ var (
 	ErrInvalidPassword = errors.New("invalid password")
 )
 
-func (s *Service) Auth(ctx context.Context, username string, password string, email string) (string, error) {
+func (s *service) Auth(ctx context.Context, username string, password string, email string) (string, error) {
 	if password == "" {
 		return "", ErrInvalidPassword
 	}
@@ -51,7 +51,7 @@ func (s *Service) Auth(ctx context.Context, username string, password string, em
 		"exp":     time.Now().Add(24 * time.Hour).Unix(),
 	})
 
-	tokenSighed, err := token.SignedString(s.jwtSecret)
+	tokenSighed, err := token.SignedString([]byte(s.jwtSecret))
 	if err != nil {
 		return "", fmt.Errorf("error with sigh token: %w", err)
 	}

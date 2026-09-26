@@ -21,7 +21,7 @@ func (h *Handler) Buy(w http.ResponseWriter, r *http.Request) {
 
 	itemName := r.PathValue("item")
 
-	err := h.Service.Buy(ctx, userID, itemName)
+	err := h.service.Buy(ctx, userID, itemName)
 
 	switch {
 	case errors.Is(err, buyservice.ErrWithItemName):

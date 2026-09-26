@@ -14,12 +14,13 @@ type ctxKey string
 
 var userIDKey ctxKey = "user_id"
 
+// Auth middleware create.
 func Auth(next http.Handler, jwtSecret []byte) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := logrus.New()
 		ctx := r.Context()
 
-		header := r.PathValue("user_id")
+		header := r.Header.Get("Authorization")
 
 		tokenStr := strings.TrimPrefix(header, "Bearer ")
 
@@ -44,6 +45,12 @@ func Auth(next http.Handler, jwtSecret []byte) http.Handler {
 	})
 }
 
+// ContextFromUserID create.
+func ContextFromUserID(ctx context.Context, userID int64) context.Context {
+	return context.WithValue(ctx, userIDKey, userID)
+}
+
+// UserIDFromContext create.
 func UserIDFromContext(ctx context.Context) (int64, bool) {
 	id, ok := ctx.Value(userIDKey).(int64)
 	return id, ok

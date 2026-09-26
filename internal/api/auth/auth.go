@@ -26,7 +26,7 @@ func (h *Handler) Auth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.UserRepo.Auth(ctx, req.Username, req.Password, req.Email)
+	token, err := h.service.Auth(ctx, req.Username, req.Password, req.Email)
 
 	switch {
 	case errors.Is(err, authservice.ErrInvalidPassword):

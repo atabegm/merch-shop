@@ -1,19 +1,22 @@
 package sendcoin
 
 import (
-	sendcoinservice "avito/internal/service/send_coin_service"
+	"context"
 
 	"github.com/sirupsen/logrus"
 )
 
+type SendCoinService interface {
+	Send(ctx context.Context, senderID int64, toUser string, amount int64) error
+}
 type Handler struct {
-	Service sendcoinservice.Service
+	service SendCoinService
 	logger  *logrus.Logger
 }
 
-func New(service sendcoinservice.Service, logger *logrus.Logger) *Handler {
+func New(service SendCoinService, logger *logrus.Logger) *Handler {
 	return &Handler{
-		Service: service,
+		service: service,
 		logger:  logger,
 	}
 }

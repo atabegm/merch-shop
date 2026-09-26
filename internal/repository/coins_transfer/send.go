@@ -7,7 +7,8 @@ import (
 )
 
 var (
-	ErrWithSend = errors.New("error with send")
+	ErrWithSend        = errors.New("error with send")
+	ErrWithGetReceiver = errors.New("error with get receiver")
 )
 
 func (r *Repo) Send(ctx context.Context, senderID int64, receiverID int64, amount int64) error {
@@ -36,8 +37,7 @@ func (r *Repo) Send(ctx context.Context, senderID int64, receiverID int64, amoun
 	}
 
 	if res.RowsAffected() == 0 {
-		r.logger.Println(err)
-		return fmt.Errorf("TODO: %w", err)
+		return ErrWithGetReceiver
 	}
 
 	_, err = tx.Exec(ctx, "INSERT INTO coins_transfers (sender_id, receiver_id, amount) VALUES ($1, $2, $3)", senderID, receiverID, amount)

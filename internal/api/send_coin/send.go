@@ -20,6 +20,7 @@ func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		h.logger.Println("error in send handler", ok)
 		response.Error(w, http.StatusInternalServerError, "error with sender ID")
+		return
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -30,24 +31,24 @@ func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
 	if err := validation.ValidateStruct(
 		&req,
 		validation.Field(&req.ToUser, validation.Required),
-		validation.Field(&req.Amount, validation.Min(int64(1))),
+		validation.Field(&req.Amount, validation.Required),
 	); err != nil {
 		h.logger.Println(err)
 		response.Error(w, http.StatusBadRequest, "error with request")
 		return
 	}
 
-	err := h.Service.Send(ctx, senderID, req.ToUser, req.Amount)
+	err := h.service.Send(ctx, senderID, req.ToUser, req.Amount)
 
 	switch {
 	case errors.Is(err, sendcoinservice.ErrInvalidAmount):
-		response.Error(w, http.StatusBadRequest, "amount must be positive")
+		response.Error(w, http.StatusBadRequest, err.Error())
 		return
 	case errors.Is(err, sendcoinservice.ErrSelfTrans):
-		response.Error(w, http.StatusBadRequest, "cannot send yourself")
+		response.Error(w, http.StatusBadRequest, err.Error())
 		return
 	case errors.Is(err, sendcoinservice.ErrWithEnoughCoins):
-		response.Error(w, http.StatusBadRequest, "not enough coins")
+		response.Error(w, http.StatusBadRequest, err.Error())
 		return
 	case err != nil:
 		response.Error(w, http.StatusInternalServerError, "error with send")

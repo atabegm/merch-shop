@@ -12,18 +12,14 @@ var (
 	ErrWithEnoughCoins = errors.New("not enough coins")
 )
 
-func (s *Service) Send(ctx context.Context, senderID int64, toUser string, amount int64) error {
-	if amount < 0 {
+func (s *service) Send(ctx context.Context, senderID int64, toUser string, amount int64) error {
+	if amount < int64(0) {
 		return ErrInvalidAmount
 	}
 
 	sender, err := s.UserRepository.GetByID(ctx, senderID)
 	if err != nil {
 		return fmt.Errorf("error with get sender: %w", err)
-	}
-
-	if sender.Coins < amount {
-		return ErrWithEnoughCoins
 	}
 
 	receiver, err := s.UserRepository.GetByUsername(ctx, toUser)
@@ -34,7 +30,7 @@ func (s *Service) Send(ctx context.Context, senderID int64, toUser string, amoun
 	if sender.ID == receiver.ID {
 		return ErrSelfTrans
 	}
-	
+
 	if err := s.CoinTransfersRepository.Send(ctx, senderID, receiver.ID, amount); err != nil {
 		return fmt.Errorf("error with send: %w", err)
 	}

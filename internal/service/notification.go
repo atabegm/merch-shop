@@ -37,12 +37,14 @@ func (s *NotificationService) HandlePurchase(ctx context.Context, purchEvent *mo
 	)
 
 	message := []byte(
-		"From: " + s.from +
-			"To: " + purchEvent.Email +
+		"From: " + s.from + "\r\n" +
+			"To: " + purchEvent.Email + "\r\n" +
 			"Subject: Purchase successful\r\n" +
 			"\r\n" +
-			body,
+			body + "\r\n",
 	)
+
+	fmt.Printf("EMAIL: %q\n", purchEvent.Email)
 
 	err := smtp.SendMail(
 		addr,

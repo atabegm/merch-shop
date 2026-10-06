@@ -1,4 +1,4 @@
-package consumer
+package main
 
 import (
 	"avito/internal/apiserver"
@@ -9,38 +9,28 @@ import (
 	"os"
 
 	"github.com/goccy/go-yaml"
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("failed to load .env: %v", err)
-	}
-
-	data, err := os.ReadFile(
-		"configs/config.yaml",
-	)
-	if err != nil {
-		log.Printf("failed to read yaml file: %v", err)
-	}
-
 	cfg := apiserver.NewConfig()
 
-	err = yaml.Unmarshal(
-		data,
-		cfg,
-	)
+	data, err := os.ReadFile("configs/config.yaml")
 	if err != nil {
-		log.Printf("failed to unmarshal: %v", err)
+		log.Fatal("failed to read config file:", err)
 	}
+
+	err = yaml.Unmarshal(data, cfg)
+	if err != nil {
+		log.Fatal("failed to unmarshal config:", err)
+	}
+
+	ctx := context.Background()
 
 	consumer := kafka.NewConsumer(
 		cfg.KafkaBroker,
 		cfg.KafkaTopic,
 		cfg.KafkaGroupID,
 	)
-
 	defer consumer.Close()
 
 	notificationService := service.NewNotificationService(
@@ -50,8 +40,9 @@ func main() {
 	)
 
 	err = consumer.Consume(
-		context.Background(),
+		ctx,
 		notificationService.HandlePurchase,
 	)
-	log.Printf("error with consume: %v", err)
+
+	log.Fatal("consumer stopped:", err)
 }

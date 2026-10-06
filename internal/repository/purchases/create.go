@@ -15,7 +15,7 @@ func (r *Repo) Create(ctx context.Context, userID, merchID int64) error {
 	_, err := conn.Exec(
 		ctx,
 		`
-		INSERN INTO purchases (user_id, merch_id) 
+		INSERT INTO purchases (user_id, merch_id) 
 		VALUES ($1, $2)	
 		`,
 		userID,

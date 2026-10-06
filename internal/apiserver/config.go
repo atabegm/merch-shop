@@ -5,59 +5,53 @@ import (
 	"strconv"
 )
 
-// Config object create.
-
-// Config create.
 type Config struct {
-	BindAddr     string `yaml:"bind_addr"`
-	LogLevel     string `yaml:"log_level"`
+	BindAddr string `yaml:"bind_addr"`
+	LogLevel string `yaml:"log_level"`
+
+	KafkaBroker  string `yaml:"-"`
 	KafkaTopic   string `yaml:"kafka_topic"`
 	KafkaGroupID string `yaml:"kafka_group_id"`
 
-	KafkaBroker string
-
-	SMTPHost string
-	SMTPPort string
-	SMTPFrom string
+	SMTPHost string `yaml:"-"`
+	SMTPPort string `yaml:"-"`
+	SMTPFrom string `yaml:"-"`
 }
 
-// DBConfig create.
 type DBConfig struct {
-	PgUser     string `env:"PGUSER"`
-	PgPassword string `env:"PGPASSWORD"`
-	PgHost     string `env:"PGHOST"`
-	PgPort     uint16 `env:"PGPORT"`
-	PgDatabase string `env:"PGDATABASEURL"`
-	PgSSLMode  string `env:"PGSSLMODE"`
+	PgUser     string 
+	PgPassword string
+	PgHost     string
+	PgPort     uint16
+	PgDatabase string
+	PgSSLMode  string
 }
 
-// NewDBConfig create.
+func NewConfig() *Config {
+	return &Config{
+		KafkaBroker: os.Getenv("KAFKA_BROKERS"),
+		SMTPHost:    os.Getenv("SMTP_HOST"),
+		SMTPPort:    os.Getenv("SMTP_PORT"),
+		SMTPFrom:    os.Getenv("SMTP_FROM"),
+	}
+}
+
 func NewDBConfig() *DBConfig {
 	port, err := strconv.ParseUint(
-		os.Getenv("PGPORT"),
+		os.Getenv("DATABASE_PORT"),
 		10,
 		16,
 	)
 	if err != nil {
-		port = 5433
+		port = 5432
 	}
 
 	return &DBConfig{
-		PgUser:     os.Getenv("PGUSER"),
-		PgPassword: os.Getenv("PGPASSWORD"),
-		PgHost:     os.Getenv("PGHOST"),
+		PgUser:     os.Getenv("DATABASE_USER"),
+		PgPassword: os.Getenv("DATABASE_PASSWORD"),
+		PgHost:     os.Getenv("DATABASE_HOST"),
 		PgPort:     uint16(port),
-		PgDatabase: os.Getenv("PGDATABASE"),
-		PgSSLMode:  os.Getenv("PGSSLMODE"),
-	}
-}
-
-// NewConfig constructor create.
-func NewConfig() *Config {
-	return &Config{
-		KafkaBroker: os.Getenv("KAFKA_BROKER"),
-		SMTPHost:    os.Getenv("SMTP_HOST"),
-		SMTPPort:    os.Getenv("SMTP_PORT"),
-		SMTPFrom:    os.Getenv("SMTP_FROM"),
+		PgDatabase: os.Getenv("DATABASE_NAME"),
+		PgSSLMode:  os.Getenv("DATABASE_SSLMODE"),
 	}
 }

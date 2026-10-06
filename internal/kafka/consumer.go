@@ -3,6 +3,7 @@ package kafka
 import (
 	"avito/internal/model"
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/segmentio/kafka-go"
@@ -14,13 +15,15 @@ type Consumer struct {
 }
 
 // NewConsumer create.
-func NewConsumer(topic, kafkaURL, groupID string) *Consumer {
+func NewConsumer(broker string, topic string, groupID string) *Consumer {
 	return &Consumer{
-		kafka.NewReader(kafka.ReaderConfig{
-			Brokers: []string{kafkaURL},
-			GroupID: groupID,
-			Topic:   topic,
-		}),
+		reader: kafka.NewReader(
+			kafka.ReaderConfig{
+				Brokers: []string{broker},
+				Topic:   topic,
+				GroupID: groupID,
+			},
+		),
 	}
 }
 
@@ -35,6 +38,14 @@ func (c *Consumer) Consume(ctx context.Context, handler func(context.Context, *m
 		}
 
 		var purchaseEvent model.PurchaseCreated
+
+		err = json.Unmarshal(
+			msg.Value,
+			&purchaseEvent,
+		)
+		if err != nil {
+			return fmt.Errorf("error with unmarshal: %w", err)
+		}
 
 		err = handler(
 			ctx,

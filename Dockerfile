@@ -4,17 +4,29 @@ WORKDIR /app
 
 ENV CGO_ENABLED=0
 
+COPY go.mod go.sum ./
+
+RUN go mod download
+
 COPY . .
 
-RUN go build -o /build ./cmd/app \
-    && go clean -cache -modcache
+RUN mkdir -p /build
+
+RUN go build -o /build/shop-service ./cmd/app
+
+RUN go build -o /build/consumer ./cmd/consumer
 
 FROM alpine:3.21
 
 RUN apk add --no-cache ca-certificates tzdata
 
-COPY --from=builder /build /build
+WORKDIR /app
+
+COPY --from=builder /build/shop-service /app/shop-service
+COPY --from=builder /build/consumer /app/consumer
+
+COPY configs /app/configs
 
 EXPOSE 8080
 
-CMD ["/build"]
+CMD ["/app/shop-service"]

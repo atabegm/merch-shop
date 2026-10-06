@@ -29,7 +29,8 @@ CREATE TABLE purchases (
     id bigserial not null primary key,
     user_id bigint references users(id),
     merch_id bigint references merch(id),
-    price bigint not null  
+    quantity bigint not null,
+    created_at timestamptz not null default now 
 );  
 
 CREATE TABLE coins_transfers (

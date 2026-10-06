@@ -6,8 +6,9 @@ import (
 	"fmt"
 )
 
-func (r *Repo) GetByName(ctx context.Context, name string) (model.Merch, error) {
-	row := r.pool.QueryRow(ctx, "SELECT id, name, price FROM merch WHERE name = $1", name)
+// GetByItem create.
+func (r *Repo) GetByName(ctx context.Context, item string) (model.Merch, error) {
+	row := r.pool.QueryRow(ctx, "SELECT id, name, price FROM merch WHERE name = $1", item)
 
 	var merch model.Merch
 

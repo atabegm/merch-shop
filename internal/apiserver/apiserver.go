@@ -1,24 +1,21 @@
 package apiserver
 
 import (
-	"avito/internal/api/auth"
-	"avito/internal/api/auth/middleware"
-	"avito/internal/api/buy"
-	"avito/internal/api/info"
-	sendcoin "avito/internal/api/send_coin"
+	"avito/internal/api"
+	"avito/internal/api/middleware"
+	"avito/internal/kafka"
 	coinstransfer "avito/internal/repository/coins_transfer"
 	"avito/internal/repository/merch"
 	"avito/internal/repository/purchases"
 	"avito/internal/repository/users"
-	authservice "avito/internal/service/auth_service"
-	buyservice "avito/internal/service/buy"
-	sendcoinservice "avito/internal/service/send_coin_service"
-	"net/http"
-
+	"avito/internal/service"
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
+	"github.com/avito-tech/go-transaction-manager/drivers/pgxv5/v2"
+	"github.com/avito-tech/go-transaction-manager/trm/v2/manager"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 )
@@ -30,33 +27,57 @@ const (
 	defaultIdleTimeout       = 7 * time.Second
 )
 
+// Start create.
 func Start(ctx context.Context, config *Config, dbCfg *DBConfig, logger *logrus.Logger) error {
 	conn, err := openDB(ctx, dbCfg)
 	if err != nil {
 		return fmt.Errorf("error with connect with db: %w", err)
 	}
 
-	usersRepo := users.New(conn, logger)
+	trManager := manager.Must(pgxv5.NewDefaultFactory(conn))
+	getter := pgxv5.DefaultCtxGetter
+
+	usersRepo := users.New(conn, logger, getter)
 	merchRepo := merch.New(conn, logger)
-	purchasesRepo := purchases.New(conn, logger)
+	purchasesRepo := purchases.New(
+		getter,
+		conn,
+		logger,
+	)
+
 	coinTransfersRepo := coinstransfer.New(conn, logger)
 
 	jwtSecret := "my-secret-key"
 
-	authService := authservice.New(&usersRepo, jwtSecret)
-	buyService := buyservice.New(&purchasesRepo, &merchRepo, &usersRepo)
-	sendCoinsService := sendcoinservice.New(&usersRepo, &coinTransfersRepo)
+	producer := kafka.NewProducer(
+		config.KafkaBroker,
+		config.KafkaTopic,
+	)
 
-	authHandler := auth.New(authService, logger, jwtSecret)
-	sendCoinHandler := sendcoin.New(sendCoinsService, logger)
-	buyHandler := buy.New(buyService, logger)
-	infoHandler := info.New(&usersRepo, &coinTransfersRepo, &purchasesRepo, &merchRepo, logger)
+	defer producer.Close()
+
+	service := service.New(
+		&usersRepo,
+		&coinTransfersRepo,
+		&purchasesRepo,
+		&merchRepo,
+		trManager,
+
+		producer,
+
+		jwtSecret,
+	)
+
+	handler := api.New(
+		service,
+		logger,
+	)
 
 	router := http.NewServeMux()
-	router.Handle("GET /api/info", middleware.Auth(http.HandlerFunc(infoHandler.Info), []byte(jwtSecret)))
-	router.Handle("POST /api/buy/{item}", middleware.Auth(http.HandlerFunc(buyHandler.Buy), []byte(jwtSecret)))
-	router.Handle("POST /api/sendCoin", middleware.Auth(http.HandlerFunc(sendCoinHandler.Send), []byte(jwtSecret)))
-	router.HandleFunc("POST /api/auth", authHandler.Auth)
+	router.Handle("POST /api/send", middleware.Auth(http.HandlerFunc(handler.Send), []byte(jwtSecret)))
+	router.Handle("GET /api/buy/{item}", middleware.Auth(http.HandlerFunc(handler.Buy), []byte(jwtSecret)))
+	router.HandleFunc("POST /api/auth", handler.Auth)
+	router.Handle("GET /api/info", middleware.Auth(http.HandlerFunc(handler.Info), []byte(jwtSecret)))
 
 	srv := http.Server{
 		Addr:              config.BindAddr,

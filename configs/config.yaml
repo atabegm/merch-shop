@@ -1,2 +1,5 @@
 bind_addr: ":8080"
 log_level: "debug"
+
+kafka_topic: "purchase-created"
+kafka_group_id: "purchase-notification"

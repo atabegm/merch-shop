@@ -7,10 +7,16 @@ import (
 	"os"
 
 	"github.com/goccy/go-yaml"
+	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("failed to load .env:", err)
+	}
+
 	cfg := apiserver.NewConfig()
 	dbCfg := apiserver.NewDBConfig()
 	data, err := os.ReadFile("configs/config.yaml")

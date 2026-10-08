@@ -11,6 +11,7 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation"
 )
 
+// SendRequest create.
 type SendRequest struct {
 	ToUser string `json:"toUser"`
 	Amount int64  `json:"amount"`
@@ -52,7 +53,7 @@ func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, service.ErrSelfTrans):
 		response.Error(w, http.StatusBadRequest, err.Error())
 		return
-	case errors.Is(err, service.ErrWithEnoughCoins):
+	case errors.Is(err, service.ErrNotEnoughCoins):
 		response.Error(w, http.StatusBadRequest, err.Error())
 		return
 	case err != nil:

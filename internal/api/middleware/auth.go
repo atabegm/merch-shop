@@ -45,13 +45,17 @@ func Auth(next http.Handler, jwtSecret []byte) http.Handler {
 	})
 }
 
-// ContextFromUserID create.
-func ContextFromUserID(ctx context.Context, userID int64) context.Context {
-	return context.WithValue(ctx, userIDKey, userID)
-}
-
 // UserIDFromContext create.
 func UserIDFromContext(ctx context.Context) (int64, bool) {
 	id, ok := ctx.Value(userIDKey).(int64)
 	return id, ok
+}
+
+// ContextFromUserID create.
+func ContextFromUserID(ctx context.Context, userID int64) context.Context {
+	return context.WithValue(
+		ctx,
+		userIDKey,
+		userID,
+	)
 }

@@ -12,16 +12,16 @@ import (
 
 var (
 
-	// ErrWithItemName create.
-	ErrWithItemName = errors.New("item name is required")
-	// ErrWithEnoughCoins create.
-	ErrWithEnoughCoins = errors.New("not enough coins")
+	// ErrEmptyItem create.
+	ErrEmptyItem = errors.New("item name is required")
+	// ErrNotEnoughCoins create.
+	ErrNotEnoughCoins = errors.New("not enough coins")
 )
 
 // Buy create.
 func (s *Service) Buy(ctx context.Context, userID int64, itemName string) error {
 	if itemName == "" {
-		return ErrWithItemName
+		return ErrEmptyItem
 	}
 
 	merch, err := s.MerchRepository.GetByName(

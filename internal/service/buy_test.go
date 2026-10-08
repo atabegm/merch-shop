@@ -1,117 +1,408 @@
 package service
 
-// import (
-// 	mock_service "avito/internal/service/mocks"
-// 	"context"
-// 	"testing"
+import (
+	"avito/internal/model"
+	mock_service "avito/internal/service/mocks"
+	"context"
+	"errors"
+	"testing"
 
-// 	"github.com/golang/mock/gomock"
-// 	"github.com/stretchr/testify/require"
-// )
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/require"
+)
 
-// func TestService_Buy(t *testing.T) {
-// 	type mockBehaviour func(
-// 		userRepo *mock_service.MockUserRepository,
-// 		purchasesRepo *mock_service.MockPurchasesRepository,
-// 		merchRepo *mo
-// 		transactor *mock_service.MockTransactor,
-// 	)
+var (
+	errMerch       = errors.New("merch error")
+	errUser        = errors.New("user error")
+	errPurchase    = errors.New("purchase error")
+	errCoins       = errors.New("coins error")
+	errTransaction = errors.New("transaction error")
+	errProduce     = errors.New("produce error")
+)
 
-// 	userID := int64(1)
+func TestService_Buy(t *testing.T) {
+	type mockBehaviour func(
+		merchRepo *mock_service.MockMerchRepository,
+		userRepo *mock_service.MockUserRepository,
+		purchRepo *mock_service.MockPurchasesRepository,
+		transactor *mock_service.MockTransactor,
+		produce *mock_service.MockProduce,
+	)
 
-// 	itemName := "book"
-// 	quantity := int64(1)
+	testMerch := model.Merch{
+		ID:    1,
+		Name:  "book",
+		Price: 100,
+	}
 
-// 	amount := int64(1)
+	testUser := model.User{
+		ID:    1,
+		Email: "muhammad@mail.ru",
+	}
 
-// 	testCases := []struct {
-// 		name     string
-// 		userID   int64
-// 		itemName string
-// 		quantity int64
-// 		amount   int64
+	testCases := []struct {
+		name     string
+		userID   int64
+		itemName string
 
-// 		mockBehaviour mockBehaviour
+		mockBehaviour mockBehaviour
 
-// 		expectedErr error
-// 	}{
-// 		{
-// 			name:     "buy OK",
-// 			userID:   userID,
-// 			itemName: itemName,
-// 			quantity: quantity,
-// 			amount:   amount,
+		expectedErr error
+	}{
+		{
+			name:     "buy OK",
+			userID:   testUser.ID,
+			itemName: testMerch.Name,
 
-// 			mockBehaviour: func(
-// 				userRepo *mock_service.MockUserRepository,
-// 				purchasesRepo *mock_service.MockPurchasesRepository,
-// 				transactor *mock_service.MockTransactor,
-// 			) {
-// 				transactor.EXPECT().Do(gomock.Any(), gomock.Any()).DoAndReturn(
-// 					func(
-// 						ctx context.Context,
-// 						fn func(context.Context) error,
-// 					) error {
-// 						return fn(ctx)
-// 					},
-// 				)
+			mockBehaviour: func(
+				merchRepo *mock_service.MockMerchRepository,
+				userRepo *mock_service.MockUserRepository,
+				purchRepo *mock_service.MockPurchasesRepository,
+				transactor *mock_service.MockTransactor,
+				produce *mock_service.MockProduce,
+			) {
+				merchRepo.EXPECT().
+					GetByName(
+						gomock.Any(),
+						testMerch.Name,
+					).
+					Return(testMerch, nil)
 
-// 				userRepo.EXPECT().SubstractCoins(
-// 					gomock.Any(),
-// 					amount,
-// 					userID,
-// 				)
+				userRepo.EXPECT().
+					GetByID(
+						gomock.Any(),
+						testUser.ID,
+					).
+					Return(testUser, nil)
 
-// 				purchasesRepo.EXPECT().Create(
-// 					context.Background(),
-// 					userID,
+				transactor.EXPECT().
+					Do(
+						gomock.Any(),
+						gomock.Any(),
+					).
+					DoAndReturn(
+						func(
+							ctx context.Context,
+							fn func(context.Context) error,
+						) error {
+							return fn(ctx)
+						},
+					)
 
-// 				)
-// 			},
+				purchRepo.EXPECT().
+					Create(
+						gomock.Any(),
+						testUser.ID,
+						testMerch.ID,
+					).
+					Return(nil)
 
-// 			expectedErr: nil,
-// 		},
-// 	}
+				userRepo.EXPECT().
+					SubstractCoins(
+						gomock.Any(),
+						testMerch.Price,
+						testUser.ID,
+					).
+					Return(nil)
 
-// 	for _, tc := range testCases {
-// 		t.Run(tc.name, func(t *testing.T) {
-// 			ctrl := gomock.NewController(t)
+				produce.EXPECT().
+					Produce(
+						gomock.Any(),
+						gomock.Any(),
+					).
+					Return(nil)
+			},
 
-// 			userRepo := mock_service.NewMockUserRepository(ctrl)
-// 			purchasesRepo := mock_service.NewMockPurchasesRepository(ctrl)
-// 			transactor := mock_service.NewMockTransactor(ctrl)
+			expectedErr: nil,
+		},
 
-// 			tc.mockBehaviour(
-// 				userRepo,
-// 				purchasesRepo,
-// 				transactor,
-// 			)
+		{
+			name:     "empty item name",
+			userID:   testUser.ID,
+			itemName: "",
 
-// 			buyService := &Service{
-// 				UserRepository:      userRepo,
-// 				PurchasesRepository: purchasesRepo,
-// 				Transactor:          transactor,
-// 			}
+			mockBehaviour: func(
+				merchRepo *mock_service.MockMerchRepository,
+				userRepo *mock_service.MockUserRepository,
+				purchRepo *mock_service.MockPurchasesRepository,
+				transactor *mock_service.MockTransactor,
+				produce *mock_service.MockProduce,
+			) {
+			},
 
-// 			err := buyService.Buy(
-// 				context.Background(),
-// 				tc.userID,
-// 				tc.itemName,
-// 				tc.quantity,
-// 			)
+			expectedErr: ErrEmptyItem,
+		},
 
-// 			if tc.expectedErr != nil {
-// 				require.ErrorIs(
-// 					t,
-// 					err,
-// 					tc.expectedErr,
-// 				)
-// 			} else {
-// 				require.NoError(
-// 					t,
-// 					err,
-// 				)
-// 			}
-// 		})
-// 	}
-// }
+		{
+			name:     "get merch error",
+			userID:   testUser.ID,
+			itemName: testMerch.Name,
+
+			mockBehaviour: func(
+				merchRepo *mock_service.MockMerchRepository,
+				userRepo *mock_service.MockUserRepository,
+				purchRepo *mock_service.MockPurchasesRepository,
+				transactor *mock_service.MockTransactor,
+				produce *mock_service.MockProduce,
+			) {
+				merchRepo.EXPECT().
+					GetByName(
+						gomock.Any(),
+						testMerch.Name,
+					).
+					Return(model.Merch{}, errMerch)
+			},
+
+			expectedErr: errMerch,
+		},
+
+		{
+			name:     "get user error",
+			userID:   testUser.ID,
+			itemName: testMerch.Name,
+
+			mockBehaviour: func(
+				merchRepo *mock_service.MockMerchRepository,
+				userRepo *mock_service.MockUserRepository,
+				purchRepo *mock_service.MockPurchasesRepository,
+				transactor *mock_service.MockTransactor,
+				produce *mock_service.MockProduce,
+			) {
+				merchRepo.EXPECT().
+					GetByName(
+						gomock.Any(),
+						testMerch.Name,
+					).
+					Return(testMerch, nil)
+
+				userRepo.EXPECT().
+					GetByID(
+						gomock.Any(),
+						testUser.ID,
+					).
+					Return(model.User{}, errUser)
+			},
+
+			expectedErr: errUser,
+		},
+
+		{
+			name:     "create purchase error",
+			userID:   testUser.ID,
+			itemName: testMerch.Name,
+
+			mockBehaviour: func(
+				merchRepo *mock_service.MockMerchRepository,
+				userRepo *mock_service.MockUserRepository,
+				purchRepo *mock_service.MockPurchasesRepository,
+				transactor *mock_service.MockTransactor,
+				produce *mock_service.MockProduce,
+			) {
+				merchRepo.EXPECT().
+					GetByName(gomock.Any(), testMerch.Name).
+					Return(testMerch, nil)
+
+				userRepo.EXPECT().
+					GetByID(gomock.Any(), testUser.ID).
+					Return(testUser, nil)
+
+				transactor.EXPECT().
+					Do(gomock.Any(), gomock.Any()).
+					DoAndReturn(
+						func(
+							ctx context.Context,
+							fn func(context.Context) error,
+						) error {
+							return fn(ctx)
+						},
+					)
+
+				purchRepo.EXPECT().
+					Create(
+						gomock.Any(),
+						testUser.ID,
+						testMerch.ID,
+					).
+					Return(errPurchase)
+			},
+
+			expectedErr: errPurchase,
+		},
+
+		{
+			name:     "subtract coins error",
+			userID:   testUser.ID,
+			itemName: testMerch.Name,
+
+			mockBehaviour: func(
+				merchRepo *mock_service.MockMerchRepository,
+				userRepo *mock_service.MockUserRepository,
+				purchRepo *mock_service.MockPurchasesRepository,
+				transactor *mock_service.MockTransactor,
+				produce *mock_service.MockProduce,
+			) {
+				merchRepo.EXPECT().
+					GetByName(gomock.Any(), testMerch.Name).
+					Return(testMerch, nil)
+
+				userRepo.EXPECT().
+					GetByID(gomock.Any(), testUser.ID).
+					Return(testUser, nil)
+
+				transactor.EXPECT().
+					Do(gomock.Any(), gomock.Any()).
+					DoAndReturn(
+						func(
+							ctx context.Context,
+							fn func(context.Context) error,
+						) error {
+							return fn(ctx)
+						},
+					)
+
+				purchRepo.EXPECT().
+					Create(
+						gomock.Any(),
+						testUser.ID,
+						testMerch.ID,
+					).
+					Return(nil)
+
+				userRepo.EXPECT().
+					SubstractCoins(
+						gomock.Any(),
+						testMerch.Price,
+						testUser.ID,
+					).
+					Return(errCoins)
+			},
+
+			expectedErr: errCoins,
+		},
+
+		{
+			name:     "transaction error",
+			userID:   testUser.ID,
+			itemName: testMerch.Name,
+
+			mockBehaviour: func(
+				merchRepo *mock_service.MockMerchRepository,
+				userRepo *mock_service.MockUserRepository,
+				purchRepo *mock_service.MockPurchasesRepository,
+				transactor *mock_service.MockTransactor,
+				produce *mock_service.MockProduce,
+			) {
+				merchRepo.EXPECT().
+					GetByName(gomock.Any(), testMerch.Name).
+					Return(testMerch, nil)
+
+				userRepo.EXPECT().
+					GetByID(gomock.Any(), testUser.ID).
+					Return(testUser, nil)
+
+				transactor.EXPECT().
+					Do(gomock.Any(), gomock.Any()).
+					Return(errTransaction)
+			},
+
+			expectedErr: errTransaction,
+		},
+		{
+			name:     "produce error",
+			userID:   testUser.ID,
+			itemName: testMerch.Name,
+
+			mockBehaviour: func(
+				merchRepo *mock_service.MockMerchRepository,
+				userRepo *mock_service.MockUserRepository,
+				purchRepo *mock_service.MockPurchasesRepository,
+				transactor *mock_service.MockTransactor,
+				produce *mock_service.MockProduce,
+			) {
+				merchRepo.EXPECT().
+					GetByName(gomock.Any(), testMerch.Name).
+					Return(testMerch, nil)
+
+				userRepo.EXPECT().
+					GetByID(gomock.Any(), testUser.ID).
+					Return(testUser, nil)
+
+				transactor.EXPECT().
+					Do(gomock.Any(), gomock.Any()).
+					DoAndReturn(
+						func(
+							ctx context.Context,
+							fn func(context.Context) error,
+						) error {
+							return fn(ctx)
+						},
+					)
+
+				purchRepo.EXPECT().
+					Create(
+						gomock.Any(),
+						testUser.ID,
+						testMerch.ID,
+					).
+					Return(nil)
+
+				userRepo.EXPECT().
+					SubstractCoins(
+						gomock.Any(),
+						testMerch.Price,
+						testUser.ID,
+					).
+					Return(nil)
+
+				produce.EXPECT().
+					Produce(
+						gomock.Any(),
+						gomock.Any(),
+					).
+					Return(errProduce)
+			},
+
+			expectedErr: errProduce,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+
+			userRepo := mock_service.NewMockUserRepository(ctrl)
+			merchRepo := mock_service.NewMockMerchRepository(ctrl)
+			purchRepo := mock_service.NewMockPurchasesRepository(ctrl)
+			transactor := mock_service.NewMockTransactor(ctrl)
+			produce := mock_service.NewMockProduce(ctrl)
+
+			tc.mockBehaviour(
+				merchRepo,
+				userRepo,
+				purchRepo,
+				transactor,
+				produce,
+			)
+
+			service := &Service{
+				UserRepository:      userRepo,
+				MerchRepository:     merchRepo,
+				PurchasesRepository: purchRepo,
+				Transactor:          transactor,
+				Produce:             produce,
+			}
+
+			err := service.Buy(
+				context.Background(),
+				tc.userID,
+				tc.itemName,
+			)
+
+			if tc.expectedErr != nil {
+				require.ErrorIs(t, err, tc.expectedErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

@@ -24,11 +24,11 @@ func (h *Handler) Buy(w http.ResponseWriter, r *http.Request) {
 	err := h.service.Buy(ctx, userID, itemName)
 
 	switch {
-	case errors.Is(err, service.ErrWithItemName):
+	case errors.Is(err, service.ErrEmptyItem):
 		h.logger.Printf("buy error: %v", err)
 		response.Error(w, http.StatusBadRequest, err.Error())
 		return
-	case errors.Is(err, service.ErrWithEnoughCoins):
+	case errors.Is(err, service.ErrNotEnoughCoins):
 		h.logger.Printf("buy error: %v", err)
 		response.Error(w, http.StatusBadRequest, err.Error())
 		return

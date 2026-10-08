@@ -3,7 +3,6 @@ package service
 import (
 	"avito/internal/model"
 	mock_service "avito/internal/service/mocks"
-
 	"context"
 	"errors"
 	"testing"
@@ -14,13 +13,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func TestService_Auth(t *testing.T) {
-	var (
-		errWithUpdateEmail = errors.New("error with update email")
-		errWithCreateUser  = errors.New("error with create user")
-		errWithGetUser     = errors.New("error with get user")
-	)
+var (
+	errWithUpdateEmail = errors.New("error with update email")
+	errWithCreateUser  = errors.New("error with create user")
+	errWithGetUser     = errors.New("error with get user")
+)
 
+func TestService_Auth(t *testing.T) {
 	password := "password"
 
 	jwtSecret := "my-secret-key"
@@ -56,7 +55,9 @@ func TestService_Auth(t *testing.T) {
 			mockBehavior: func(s *mock_service.MockUserRepository) {
 				s.EXPECT().GetByUsername(gomock.Any(), testUser.Username).Return(testUser, nil)
 			},
+			expectedErr: nil,
 		},
+
 		{
 			name:     "user create OK",
 			username: testUser.Username,
@@ -101,7 +102,6 @@ func TestService_Auth(t *testing.T) {
 			email:    testUser.Email,
 
 			mockBehavior: func(s *mock_service.MockUserRepository) {
-
 			},
 			expectedErr: ErrInvalidPassword,
 		},

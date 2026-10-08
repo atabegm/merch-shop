@@ -8,9 +8,11 @@ import (
 )
 
 var (
+	// ErrNegativeCoins create.
 	ErrNegativeCoins = errors.New("negative coins")
 )
 
+// Info service create.
 func (s *Service) Info(ctx context.Context, userID int64) (model.Info, error) {
 	coins, err := s.UserRepository.GetCoins(
 		ctx,
@@ -18,10 +20,6 @@ func (s *Service) Info(ctx context.Context, userID int64) (model.Info, error) {
 	)
 	if err != nil {
 		return model.Info{}, fmt.Errorf("get info: %w", err)
-	}
-
-	if coins < 0 {
-		return model.Info{}, ErrNegativeCoins
 	}
 
 	inventory, err := s.PurchasesRepository.GetInventory(

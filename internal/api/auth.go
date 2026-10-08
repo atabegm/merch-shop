@@ -13,14 +13,14 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 )
 
-// Request object create.
+// AuthRequest object create.
 type AuthRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	Email    string `json:"email"`
 }
 
-// Response object for auth create.
+// AuthResponse object for auth create.
 type AuthResponse struct {
 	Token string `json:"token"`
 }
@@ -71,6 +71,7 @@ func (h *Handler) Auth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
 	if err := json.NewEncoder(w).Encode(AuthResponse{
 		Token: token,
 	}); err != nil {

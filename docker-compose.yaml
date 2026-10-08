@@ -66,10 +66,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: shop
-
-    volumes:
-      - ./migrations/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-
+      
     ports:
       - "5433:5432"
 

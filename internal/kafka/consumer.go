@@ -28,7 +28,7 @@ func NewConsumer(broker string, topic string, groupID string) *Consumer {
 }
 
 // Consume create.
-func (c *Consumer) Consume(ctx context.Context, handler func(context.Context, *model.PurchaseCreated) error) error {
+func (c *Consumer) Consume(ctx context.Context, fn func(context.Context, *model.PurchaseCreated) error) error {
 	for {
 		msg, err := c.reader.FetchMessage(
 			ctx,
@@ -47,7 +47,7 @@ func (c *Consumer) Consume(ctx context.Context, handler func(context.Context, *m
 			return fmt.Errorf("error with unmarshal: %w", err)
 		}
 
-		err = handler(
+		err = fn(
 			ctx,
 			&purchaseEvent,
 		)

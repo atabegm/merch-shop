@@ -1,151 +1,165 @@
 package api
 
-// import (
-// 	"avito/internal/api/middleware"
-// 	mock_api "avito/internal/api/mocks"
-// 	"context"
-// 	"errors"
-// 	"net/http"
-// 	"net/http/httptest"
-// 	"path"
-// 	"testing"
+import (
+	"avito/internal/api/middleware"
+	mock_api "avito/internal/api/mocks"
+	"avito/internal/service"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"testing"
 
-// 	"github.com/golang/mock/gomock"
-// 	"github.com/sirupsen/logrus/hooks/test"
-// 	"github.com/stretchr/testify/require"
-// )
+	"github.com/golang/mock/gomock"
+	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/require"
+)
 
-// func TestHandler_Buy(t *testing.T) {
-// 	var (
-// 		errWithBuy = errors.New("error with buy")
-// 	)
+var errService = errors.New("error with service")
 
-// 	type mockBehavior func(buyService *mock_api.MockBuyService)
-// 	logger, _ := test.NewNullLogger()
+func TestApi_buy(t *testing.T) {
+	type mockBehavior func(serviceMock *mock_api.MockService)
+	logger, _ := test.NewNullLogger()
 
-// 	userID := int64(1)
+	itemName := "book"
+	userID := int64(1)
 
-// 	testCases := []struct {
-// 		name   string
-// 		path   string
-// 		userID int64
+	testCases := []struct {
+		name     string
+		itemName string
+		userID   int64
 
-// 		mockBehavior mockBehavior
+		contextFromUserID bool
 
-// 		expectedCode int
-// 	}{
-// 		{
-// 			name:   "buy OK",
-// 			path:   "/api/buy/book",
-// 			userID: userID,
+		mockBehavior mockBehavior
 
-// 			mockBehavior: func(buyService *mock_buy.MockBuyService) {
-// 				buyService.EXPECT().Buy(
-// 					gomock.Any(),
-// 					userID,
-// 					"book",
-// 				)
-// 			},
-// 			expectedCode: http.StatusOK,
-// 		},
-// 		{
-// 			name:   "buy ERR",
-// 			path:   "/api/buy/book",
-// 			userID: userID,
+		expectedStatus int
+	}{
+		{
+			name:     "buy api OK",
+			userID:   userID,
+			itemName: itemName,
 
-// 			mockBehavior: func(buyService *mock_buy.MockBuyService) {
-// 				buyService.EXPECT().Buy(
-// 					gomock.Any(),
-// 					userID,
-// 					"book",
-// 				).Return(errWithBuy)
-// 			},
-// 			expectedCode: http.StatusInternalServerError,
-// 		},
-// 		{
-// 			name:   "invalid item name",
-// 			path:   "/api/buy/book",
-// 			userID: userID,
+			contextFromUserID: true,
 
-// 			mockBehavior: func(buyService *mock_buy.MockBuyService) {
-// 				buyService.EXPECT().Buy(
-// 					gomock.Any(),
-// 					userID,
-// 					"book",
-// 				).Return(buyservice.ErrWithItemName)
-// 			},
-// 			expectedCode: http.StatusBadRequest,
-// 		},
-// 		{
-// 			name:   "not enough coins",
-// 			path:   "/api/buy/book",
-// 			userID: userID,
+			mockBehavior: func(serviceMock *mock_api.MockService) {
+				serviceMock.EXPECT().Buy(
+					gomock.Any(),
+					userID,
+					itemName,
+				).Return(nil)
+			},
 
-// 			mockBehavior: func(buyService *mock_buy.MockBuyService) {
-// 				buyService.EXPECT().Buy(
-// 					gomock.Any(),
-// 					userID,
-// 					"book",
-// 				).Return(buyservice.ErrWithEnoughCoins)
-// 			},
+			expectedStatus: http.StatusOK,
+		},
 
-// 			expectedCode: http.StatusBadRequest,
-// 		},
-// 		{
-// 			name: "error with context",
-// 			path: "/api/buy/book",
+		{
+			name:     "empty item",
+			userID:   userID,
+			itemName: itemName,
 
-// 			mockBehavior: func(buyService *mock_buy.MockBuyService) {
+			contextFromUserID: true,
 
-// 			},
+			mockBehavior: func(serviceMock *mock_api.MockService) {
+				serviceMock.EXPECT().Buy(
+					gomock.Any(),
+					userID,
+					itemName,
+				).Return(service.ErrEmptyItem)
+			},
 
-// 			expectedCode: http.StatusInternalServerError,
-// 		},
-// 	}
+			expectedStatus: http.StatusBadRequest,
+		},
 
-// 	for _, tc := range testCases {
-// 		t.Run(tc.name, func(t *testing.T) {
-// 			ctrl := gomock.NewController(t)
+		{
+			name:              "not enough coins",
+			contextFromUserID: true,
+			itemName:          itemName,
 
-// 			service := mock_buy.NewMockBuyService(ctrl)
-// 			tc.mockBehavior(service)
+			mockBehavior: func(serviceMock *mock_api.MockService) {
+				serviceMock.EXPECT().
+					Buy(
+						gomock.Any(),
+						userID,
+						itemName,
+					).
+					Return(service.ErrNotEnoughCoins)
+			},
 
-// 			handler := New(
-// 				service,
-// 				logger,
-// 			)
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:              "service buy error",
+			contextFromUserID: true,
+			itemName:          itemName,
 
-// 			req := httptest.NewRequest(
-// 				http.MethodPost,
-// 				tc.path,
-// 				nil,
-// 			)
+			mockBehavior: func(serviceMock *mock_api.MockService) {
+				serviceMock.EXPECT().
+					Buy(
+						gomock.Any(),
+						userID,
+						itemName,
+					).
+					Return(errService)
+			},
 
-// 			itemName := path.Base(tc.path)
-// 			req.SetPathValue("item", itemName)
+			expectedStatus: http.StatusInternalServerError,
+		},
+		{
+			name:              "user ID not in context",
+			contextFromUserID: false,
+			itemName:          itemName,
 
-// 			var ctx context.Context
+			mockBehavior: func(serviceMock *mock_api.MockService) {
+			},
 
-// 			if tc.name == "error with context" {
-// 				ctx = req.Context()
-// 			} else {
-// 				ctx = middleware.ContextFromUserID(
-// 					req.Context(),
-// 					tc.userID,
-// 				)
-// 			}
+			expectedStatus: http.StatusInternalServerError,
+		},
+	}
 
-// 			req = req.WithContext(ctx)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
 
-// 			rec := httptest.NewRecorder()
+			serviceMock := mock_api.NewMockService(ctrl)
 
-// 			handler.Buy(rec, req)
+			tc.mockBehavior(
+				serviceMock,
+			)
 
-// 			require.Equal(
-// 				t,
-// 				tc.expectedCode,
-// 				rec.Code,
-// 			)
-// 		})
-// 	}
-// }
+			handler := New(
+				serviceMock,
+				logger,
+			)
+
+			req := httptest.NewRequest(
+				http.MethodGet,
+				"/api/buy/"+tc.itemName,
+				nil,
+			)
+
+			req.SetPathValue(
+				"item",
+				tc.itemName,
+			)
+
+			if tc.contextFromUserID {
+				ctx := middleware.ContextFromUserID(
+					req.Context(),
+					userID,
+				)
+
+				req = req.WithContext(ctx)
+			}
+
+			rec := httptest.NewRecorder()
+
+			handler.Buy(rec, req)
+
+			require.Equal(
+				t,
+				tc.expectedStatus,
+				rec.Code,
+			)
+		})
+	}
+}

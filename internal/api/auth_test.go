@@ -1,159 +1,157 @@
 package api
 
-// import (
-// 	"errors"
-// 	"net/http"
-// 	"net/http/httptest"
-// 	"strings"
-// 	"testing"
+import (
+	mock_api "avito/internal/api/mocks"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
 
-// 	"github.com/golang/mock/gomock"
-// 	"github.com/sirupsen/logrus/hooks/test"
-// 	"github.com/stretchr/testify/require"
-// )
+	"avito/internal/service"
 
-// func TestHandler_Auth(t *testing.T) {
-// 	var (
-// 		errWithToken = errors.New("error with token")
-// 	)
+	"github.com/golang/mock/gomock"
+	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/require"
+)
 
-// 	type mockBehaviour func(authService *mock_auth.MockAuthService)
-// 	logger, _ := test.NewNullLogger()
+func TestHandler_Auth(t *testing.T) {
+	logger, _ := test.NewNullLogger()
+	token := "test-token"
 
-// 	testcases := []struct {
-// 		name string
-// 		body string
+	errService := errors.New("service error")
 
-// 		mockBehaviour mockBehaviour
+	type mockBehavior func(
+		serviceMock *mock_api.MockService,
+	)
 
-// 		expectedCode int
-// 	}{
-// 		{
-// 			name: "auth OK",
-// 			body: `{
-// 			"username":"muhammad",
-// 			"email":"muhammad@mail.ru",
-// 			"password":"password"
-// 			}`,
+	testCases := []struct {
+		name string
+		body string
 
-// 			mockBehaviour: func(authService *mock_auth.MockAuthService) {
-// 				authService.EXPECT().Auth(
-// 					gomock.Any(),
-// 					"muhammad",
-// 					"password",
-// 					"muhammad@mail.ru",
-// 				).Return("test-token", nil)
-// 			},
+		mockBehavior mockBehavior
 
-// 			expectedCode: http.StatusOK,
-// 		},
+		expectedStatus int
+	}{
+		{
+			name: "auth OK",
+			body: `{
+				"username":"muhammad",
+				"password":"wrong-password",
+				"email":"muhammad@mail.ru"
+			}`,
 
-// 		{
-// 			name: "auth ERR",
-// 			body: `{
-// 			"username":"muhammad",
-// 			"email":"muhammad@mail.ru",
-// 			"password":"password"
-// 			}`,
+			mockBehavior: func(serviceMock *mock_api.MockService) {
+				serviceMock.EXPECT().
+					Auth(
+						gomock.Any(),
+						"muhammad",
+						"wrong-password",
+						"muhammad@mail.ru",
+					).
+					Return(token, nil)
+			},
 
-// 			mockBehaviour: func(authService *mock_auth.MockAuthService) {
-// 				authService.EXPECT().Auth(
-// 					gomock.Any(),
-// 					"muhammad",
-// 					"password",
-// 					"muhammad@mail.ru",
-// 				).Return("test-token", errWithToken)
-// 			},
+			expectedStatus: http.StatusOK,
+		},
 
-// 			expectedCode: http.StatusInternalServerError,
-// 		},
+		{
+			name: "invalid json",
+			body: `{`,
 
-// 		{
-// 			name: "decode ERR",
-// 			body: `{
-// 			"username":"muhammad",
-// 			"email":"muhammad@mail.ru",
-// 			"password":"password"
-// 			`,
+			mockBehavior: func(serviceMock *mock_api.MockService) {
+			},
 
-// 			mockBehaviour: func(authService *mock_auth.MockAuthService) {
+			expectedStatus: http.StatusBadRequest,
+		},
 
-// 			},
+		{
+			name: "invalid email",
+			body: `{
+				"username":"muhammad",
+				"password":"password",
+				"email":"muh"
+			}`,
 
-// 			expectedCode: http.StatusBadRequest,
-// 		},
+			mockBehavior: func(serviceMock *mock_api.MockService) {
+			},
 
-// 		{
-// 			name: "invalid password",
-// 			body: `{
-// 			"username":"muhammad",
-// 			"password":"",
-// 			"email":"muhammad@mail.ru"
-// 			}`,
+			expectedStatus: http.StatusBadRequest,
+		},
 
-// 			mockBehaviour: func(authService *mock_auth.MockAuthService) {
+		{
+			name: "invalid password",
+			body: `{
+				"username":"muhammad",
+				"password":"password",
+				"email":"muhammad@mail.ru"
+			}`,
 
-// 			},
+			mockBehavior: func(serviceMock *mock_api.MockService) {
+				serviceMock.EXPECT().
+					Auth(
+						gomock.Any(),
+						"muhammad",
+						"password",
+						"muhammad@mail.ru",
+					).
+					Return("", service.ErrInvalidPassword)
+			},
 
-// 			expectedCode: http.StatusBadRequest,
-// 		},
-// 		{
-// 			name: "invalid email",
-// 			body: `{
-// 			"username":"muhammad",
-// 			"password":"password",
-// 			"email":"muhammad"
-// 			}`,
+			expectedStatus: http.StatusBadRequest,
+		},
 
-// 			mockBehaviour: func(authService *mock_auth.MockAuthService) {
+		{
+			name: "service error",
+			body: `{
+				"username":"muhammad",
+				"password":"password",
+				"email":"muhammad@mail.ru"
+			}`,
 
-// 			},
+			mockBehavior: func(serviceMock *mock_api.MockService) {
+				serviceMock.EXPECT().
+					Auth(
+						gomock.Any(),
+						"muhammad",
+						"password",
+						"muhammad@mail.ru",
+					).
+					Return("", errService)
+			},
 
-// 			expectedCode: http.StatusBadRequest,
-// 		},
-// 		{
-// 			name: "error with parse token",
-// 			body: `{
-// 			"username":"muhammad",
-// 			"password":"password",
-// 			"email":"muhammad"
-// 			}`,
+			expectedStatus: http.StatusInternalServerError,
+		},
+	}
 
-// 			mockBehaviour: func(authService *mock_auth.MockAuthService) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
 
-// 			},
+			serviceMock := mock_api.NewMockService(ctrl)
 
-// 			expectedCode: http.StatusUnauthorized,
-// 		},
-// 	}
+			tc.mockBehavior(serviceMock)
 
-// 	for _, tc := range testcases {
-// 		t.Run(tc.name, func(t *testing.T) {
-// 			ctrl := gomock.NewController(t)
+			handler := &Handler{
+				service: serviceMock,
+				logger:  logger,
+			}
 
-// 			authService := mock_auth.NewMockAuthService(ctrl)
-// 			tc.mockBehaviour(authService)
+			req := httptest.NewRequest(
+				http.MethodPost,
+				"/api/auth",
+				strings.NewReader(tc.body),
+			)
 
-// 			handler := New(
-// 				authService,
-// 				logger,
-// 			)
+			rec := httptest.NewRecorder()
 
-// 			req := httptest.NewRequest(
-// 				http.MethodPost,
-// 				"/api/buy",
-// 				strings.NewReader(tc.body),
-// 			)
+			handler.Auth(rec, req)
 
-// 			rec := httptest.NewRecorder()
-
-// 			handler.Auth(rec, req)
-
-// 			require.Equal(
-// 				t,
-// 				tc.expectedCode,
-// 				rec.Code,
-// 			)
-// 		})
-// 	}
-// }
+			require.Equal(
+				t,
+				tc.expectedStatus,
+				rec.Code,
+			)
+		})
+	}
+}

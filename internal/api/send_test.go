@@ -3,6 +3,7 @@ package api
 import (
 	"avito/internal/api/middleware"
 	mock_api "avito/internal/api/mocks"
+	"avito/internal/service"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -11,127 +12,172 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHandler_Send(t *testing.T) {
-	var (
-		errWithSend = errors.New("error with senddd")
-	)
-	type mockBehaviour func(service *mock_api.MockService)
 	logger, _ := test.NewNullLogger()
-
 	senderID := int64(1)
 
+	errService := errors.New("service error")
+
+	type mockBehavior func(
+		serviceMock *mock_api.MockService,
+	)
+
 	testCases := []struct {
-		name      string
-		senderID  int64
-		inputBody string
+		name string
+		body string
 
-		mockBehaviour mockBehaviour
+		contextFromUserID bool
 
-		expectedCode int
+		mockBehavior mockBehavior
+
+		expectedStatus int
 	}{
 		{
-			name:      "OK",
-			senderID:  senderID,
-			inputBody: `{"toUser":"muhammad", "amount":100}`,
-
-			mockBehaviour: func(service *mock_api.MockService) {
-				service.EXPECT().SendCoins(
-					gomock.Any(),
-					senderID,
-					"muhammad",
-					"100",
-				).Return(nil)
-			},
-			expectedCode: http.StatusOK,
-		},
-
-		{
-			name:     "send ERR",
-			senderID: senderID,
-			inputBody: `{
+			name: "send OK",
+			body: `{
 				"toUser":"muhammad",
 				"amount":100
 			}`,
 
-			mockBehaviour: func(service *mock_api.MockService) {
-				service.EXPECT().SendCoins(
-					gomock.Any(),
-					senderID,
-					"muhammad",
-					"100",
-				).Return(errWithSend)
+			contextFromUserID: true,
+
+			mockBehavior: func(serviceMock *mock_api.MockService) {
+				serviceMock.EXPECT().
+					SendCoins(
+						gomock.Any(),
+						senderID,
+						"muhammad",
+						int64(100),
+					).Return(nil)
 			},
-			expectedCode: http.StatusInternalServerError,
+
+			expectedStatus: http.StatusOK,
 		},
 
 		{
-			name:      "bad request",
-			senderID:  senderID,
-			inputBody: `{"toUser":"muhammad", "amount":"asd"}`,
+			name: "invalid json",
+			body: `{`,
 
-			mockBehaviour: func(service *mock_api.MockService) {
+			contextFromUserID: true,
 
+			mockBehavior: func(serviceMock *mock_api.MockService) {
 			},
 
-			expectedCode: http.StatusBadRequest,
+			expectedStatus: http.StatusBadRequest,
 		},
 
 		{
-			name:     "error with context",
-			senderID: int64(0),
-			inputBody: `{
-			"toUser": "muhammad", 
-			"amount":100
+			name: "empty to user",
+			body: `{
+				"toUser":"",
+				"amount":100
 			}`,
 
-			mockBehaviour: func(service *mock_api.MockService) {
-				service.EXPECT().SendCoins(
-					gomock.Any(),
-					senderID,
-					"muhammad",
-					"100",
-				).Return(nil)
+			contextFromUserID: true,
+
+			mockBehavior: func(serviceMock *mock_api.MockService) {
 			},
-			expectedCode: http.StatusInternalServerError,
+
+			expectedStatus: http.StatusBadRequest,
 		},
 
 		{
-			name:     "send to yourself",
-			senderID: senderID,
-			inputBody: `{
-			"toUser":"muhammad",
-			"amount":100
+			name: "empty amount",
+			body: `{
+				"toUser":"muhammad",
+				"amount":0
 			}`,
 
-			mockBehaviour: func(service *mock_api.MockService) {
-				service.EXPECT().SendCoins(
-					gomock.Any(),
-					senderID,
-					"muhammad",
-					"100",
-				).Return(nil)
+			contextFromUserID: true,
+
+			mockBehavior: func(serviceMock *mock_api.MockService) {
 			},
-			expectedCode: http.StatusBadRequest,
+
+			expectedStatus: http.StatusBadRequest,
 		},
+
 		{
-			name:     "not enough coins",
-			senderID: senderID,
-			inputBody: `{
-			"toUser":"muhammad",
-			"amount":100
+			name: "self transfer",
+			body: `{
+				"toUser":"muhammad",
+				"amount":100
 			}`,
 
-			mockBehaviour: func(service *mock_api.MockService) {
-				service.EXPECT().SendCoins(
-					gomock.Any(),
-					senderID,
-					"muhammad",
-					"100",
-				).Return(nil)
+			contextFromUserID: true,
+
+			mockBehavior: func(serviceMock *mock_api.MockService) {
+				serviceMock.EXPECT().
+					SendCoins(
+						gomock.Any(),
+						senderID,
+						"muhammad",
+						int64(100),
+					).Return(service.ErrSelfTrans)
 			},
-			expectedCode: http.StatusBadRequest,
+
+			expectedStatus: http.StatusBadRequest,
+		},
+
+		{
+			name: "not enough coins",
+			body: `{
+				"toUser":"muhammad",
+				"amount":100
+			}`,
+
+			contextFromUserID: true,
+
+			mockBehavior: func(serviceMock *mock_api.MockService) {
+				serviceMock.EXPECT().
+					SendCoins(
+						gomock.Any(),
+						senderID,
+						"muhammad",
+						int64(100),
+					).Return(service.ErrNotEnoughCoins)
+			},
+
+			expectedStatus: http.StatusBadRequest,
+		},
+
+		{
+			name: "send Error",
+			body: `{
+				"toUser":"muhammad",
+				"amount":100
+			}`,
+
+			contextFromUserID: true,
+
+			mockBehavior: func(serviceMock *mock_api.MockService) {
+				serviceMock.EXPECT().
+					SendCoins(
+						gomock.Any(),
+						senderID,
+						"muhammad",
+						int64(100),
+					).Return(errService)
+			},
+
+			expectedStatus: http.StatusInternalServerError,
+		},
+
+		{
+			name: "sender ID not in context",
+			body: `{
+				"toUser":"muhammad",
+				"amount":100
+			}`,
+
+			contextFromUserID: false,
+
+			mockBehavior: func(serviceMock *mock_api.MockService) {
+			},
+
+			expectedStatus: http.StatusInternalServerError,
 		},
 	}
 
@@ -139,36 +185,39 @@ func TestHandler_Send(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
-			service := mock_api.NewMockService(ctrl)
+			serviceMock := mock_api.NewMockService(ctrl)
 
-			tc.mockBehaviour(service)
+			tc.mockBehavior(serviceMock)
 
-			handler := New(
-				service,
-				logger,
-			)
+			handler := &Handler{
+				service: serviceMock,
+				logger:  logger,
+			}
 
 			req := httptest.NewRequest(
 				http.MethodPost,
-				"/api/send",
-				strings.NewReader(tc.inputBody),
+				"/api/sendCoins",
+				strings.NewReader(tc.body),
 			)
 
-			ctx := middleware.ContextFromUserID(
-				req.Context(),
-				tc.senderID,
-			)
+			if tc.contextFromUserID {
+				ctx := middleware.ContextFromUserID(
+					req.Context(),
+					senderID,
+				)
 
-			req = req.WithContext(ctx)
+				req = req.WithContext(ctx)
+			}
 
 			rec := httptest.NewRecorder()
 
-			handler.Send(
-				rec,
-				req,
-			)
+			handler.Send(rec, req)
 
-			
+			require.Equal(
+				t,
+				tc.expectedStatus,
+				rec.Code,
+			)
 		})
 	}
 }

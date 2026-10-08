@@ -1,59 +1,49 @@
 package api
 
 import (
+	"avito/internal/api/middleware"
+	"avito/internal/api/response"
+	"avito/internal/model"
+	"encoding/json"
 	"net/http"
 )
 
 // InfoResponse object create.
 type InfoResponse struct {
-	Coins       int64       `json:"coins"`
-	Inventory   []Inventory `json:"inventory"`
-	CoinHistory CoinHistory `json:"coinHistory"`
-}
-
-// CoinHistory object create.
-type CoinHistory struct {
-	Received []ReceivedTransaction `json:"received"`
-	Sent     []SentTransaction     `json:"sent"`
-}
-
-// Inventory class create.
-type Inventory struct {
-	Type     string `json:"type"`
-	Quantity int64  `json:"quantity"`
-}
-
-// ReceivedTransaction object create.
-type ReceivedTransaction struct {
-	FromUser string `json:"fromUser"`
-	Amount   int64  `json:"amount"`
-}
-
-// SentTransaction object create.
-type SentTransaction struct {
-	ToUser string `json:"toUser"`
-	Amount int64  `json:"amount"`
+	Coins       int64                 `json:"coins"`
+	Inventory   []model.InventoryItem `json:"inventory"`
+	CoinHistory model.CoinHistory     `json:"coinHistory"`
 }
 
 // Info handler create.
 func (h *Handler) Info(w http.ResponseWriter, r *http.Request) {
-	// ctx := r.Context()
+	ctx := r.Context()
 
-	// userID, ok := middleware.UserIDFromContext(ctx)
-	// if !ok {
-	// 	h.logger.Println(ok)
-	// 	response.Error(w, http.StatusInternalServerError, "not user ID")
-	// 	return
-	// }
+	userID, ok := middleware.UserIDFromContext(ctx)
+	if !ok {
+		h.logger.Println(ok)
+		response.Error(w, http.StatusInternalServerError, "not user ID")
+		return
+	}
 
-	// info, err := h.service.Info(
-	// 	ctx,
-	// 	userID,
-	// )
-	// switch {
-	// case errors.Is(err, service.ErrNegativeCoins):
+	info, err := h.service.Info(
+		ctx,
+		userID,
+	)
+	if err != nil {
+		h.logger.Println(err)
+		response.Error(w, http.StatusInternalServerError, "error with info")
+		return
+	}
 
-	// }
+	w.Header().Set("Content-Type", "application/json")
 
-	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(InfoResponse{
+		Coins:       info.Coins,
+		Inventory:   info.Inventory,
+		CoinHistory: info.CoinHistory,
+	})
+	if err != nil {
+		h.logger.Println(err)
+	}
 }

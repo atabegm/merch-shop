@@ -2,7 +2,7 @@ package model
 
 import "time"
 
-// PurchaseCreated event
+// PurchaseCreated event.
 type PurchaseCreated struct {
 	EventID     string    `json:"event_id"`
 	UserID      int64     `json:"user_id"`

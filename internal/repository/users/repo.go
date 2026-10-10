@@ -9,8 +9,8 @@ import (
 // Repo for users create.
 type Repo struct {
 	pool   *pgxpool.Pool
-	getter *pgxv5.CtxGetter
 	logger *logrus.Logger
+	getter *pgxv5.CtxGetter
 }
 
 // New repo for users create.

@@ -44,5 +44,5 @@ func main() {
 		notificationService.HandlePurchase,
 	)
 
-	log.Fatal("consumer stopped:", err)
+	log.Printf("consumer stopped: %v", err)
 }

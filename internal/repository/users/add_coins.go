@@ -11,11 +11,11 @@ var ErrUserNotFound = errors.New("user not found")
 
 // AddCoins create.
 func (r *Repo) AddCoins(ctx context.Context, amount, userID int64) error {
-	// conn := r.getter.DefaultTrOrDB(
-	// 	ctx,
-	// 	r.pool,
-	// )
-	res, err := r.pool.Exec(
+	conn := r.getter.DefaultTrOrDB(
+		ctx,
+		r.pool,
+	)
+	res, err := conn.Exec(
 		ctx,
 		"UPDATE users SET coins = coins + $1 WHERE id = $2",
 		amount,

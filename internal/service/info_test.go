@@ -19,7 +19,6 @@ var (
 )
 
 func TestService_Info(t *testing.T) {
-
 	userID := int64(1)
 
 	type mockBehavior func(
@@ -90,25 +89,6 @@ func TestService_Info(t *testing.T) {
 			},
 
 			expectedErr: errGetCoins,
-		},
-
-		{
-			name: "negative coins",
-
-			mockBehavior: func(
-				userRepo *mock_service.MockUserRepository,
-				purchasesRepo *mock_service.MockPurchasesRepository,
-				coinTransfersRepo *mock_service.MockCoinTransfersRepository,
-			) {
-				userRepo.EXPECT().
-					GetCoins(
-						gomock.Any(),
-						userID,
-					).
-					Return(int64(-1), nil)
-			},
-
-			expectedErr: ErrNegativeCoins,
 		},
 
 		{

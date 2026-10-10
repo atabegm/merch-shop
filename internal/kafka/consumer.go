@@ -65,6 +65,7 @@ func (c *Consumer) Consume(ctx context.Context, fn func(context.Context, *model.
 	}
 }
 
+// Close crete.
 func (c *Consumer) Close() error {
 	return c.reader.Close()
 }

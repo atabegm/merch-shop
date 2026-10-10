@@ -11,7 +11,12 @@ func (r *Repo) SubstractCoins(ctx context.Context, amount, userID int64) error {
 		ctx,
 		r.pool,
 	)
-	res, err := conn.Exec(ctx, "UPDATE users SET coins = coins - $1 WHERE id = $2", amount, userID)
+	res, err := conn.Exec(
+		ctx,
+		"UPDATE users SET coins = coins - $1 WHERE id = $2",
+		amount,
+		userID,
+	)
 	if err != nil {
 		r.logger.Println(err)
 		return fmt.Errorf("error with sent coins: %w", err)
@@ -23,5 +28,3 @@ func (r *Repo) SubstractCoins(ctx context.Context, amount, userID int64) error {
 
 	return nil
 }
-
-// insert 

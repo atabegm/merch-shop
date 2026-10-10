@@ -12,40 +12,39 @@ func (r *Repo) GetInventory(ctx context.Context, userID int64) ([]model.Inventor
 		ctx,
 		`
 		SELECT 
-			item
+			m.name
 			COUNT(*)
-		FROM purchases
-		WHERE user_id = $1
-		GROUP BY item
+		FROM purchases p
+		JOIN merch m ON m.id = p.merch_id
+		WHERE p.user_id = $1
 		`,
 		userID,
 	)
 	if err != nil {
-		return []model.InventoryItem{}, fmt.Errorf("get inventory: %w", err)
+		return nil, fmt.Errorf("get inv: %w", err)
 	}
 
 	defer rows.Close()
 
 	var inventory []model.InventoryItem
+	var inventoryItem model.InventoryItem
 
 	for rows.Next() {
-		var item model.InventoryItem
-
 		err = rows.Scan(
-			&item.Type,
-			&item.Quantity,
+			&inventoryItem.Type,
+			&inventoryItem.Quantity,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("error with scan: %w", err)
+			return nil, fmt.Errorf("scan inv item: %w", err)
 		}
 
-		inventory = append(inventory, item)
+		inventory = append(inventory, inventoryItem)
 	}
 
 	err = rows.Err()
 	if err != nil {
-		return nil, fmt.Errorf("error with rows: %w", err)
+		return nil, fmt.Errorf("rows err inv item: %w", err)
 	}
 
-	return inventory, nil
+	return nil, nil
 }

@@ -4,9 +4,8 @@ import "time"
 
 // Purchases object create.
 type Purchases struct {
-		ID        int64     `json:"id"`
-		UserID    int64     `json:"user_id"`
-		MerchID   int64     `json:"merch_id"`
-		Quantity  int64     `json:"quantity"`
-		CreatedAt time.Time `json:"created_at"`
+	ID        int64     `json:"id"`
+	UserID    int64     `json:"user_id"`
+	MerchID   int64     `json:"merch_id"`
+	CreatedAt time.Time `json:"created_at"`
 }

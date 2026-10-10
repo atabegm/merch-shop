@@ -7,6 +7,7 @@ import (
 	"net/smtp"
 )
 
+// NotificationService create.
 type NotificationService struct {
 	host string
 	port string
@@ -14,8 +15,8 @@ type NotificationService struct {
 }
 
 // NewNotificationService create.
-func NewNotificationService(host, port, from string) *NotificationService {
-	return &NotificationService{
+func NewNotificationService(host, port, from string) NotificationService {
+	return NotificationService{
 		host: host,
 		port: port,
 		from: from,
@@ -31,7 +32,7 @@ func (s *NotificationService) HandlePurchase(ctx context.Context, purchEvent *mo
 	}
 
 	body := fmt.Sprintf(
-		"U bought %s for %d coins",
+		"U bought %s for %d",
 		purchEvent.Item,
 		purchEvent.Price,
 	)
@@ -44,8 +45,6 @@ func (s *NotificationService) HandlePurchase(ctx context.Context, purchEvent *mo
 			body + "\r\n",
 	)
 
-	fmt.Printf("EMAIL: %q\n", purchEvent.Email)
-
 	err := smtp.SendMail(
 		addr,
 		nil,
@@ -54,7 +53,7 @@ func (s *NotificationService) HandlePurchase(ctx context.Context, purchEvent *mo
 		message,
 	)
 	if err != nil {
-		return fmt.Errorf("notification: %w", err)
+		return fmt.Errorf("notificatiuon: %w", err)
 	}
 
 	return nil

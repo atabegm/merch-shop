@@ -95,7 +95,7 @@ func Start(ctx context.Context, config *Config, dbCfg *DBConfig, logger *logrus.
 func openDB(ctx context.Context, dbCfg *DBConfig) (*pgxpool.Pool, error) {
 	config, err := pgxpool.ParseConfig("")
 	if err != nil {
-		return nil, fmt.Errorf("error with pool parse config: %w", err)
+		return nil, fmt.Errorf("apiserver: %w", err)
 	}
 
 	config.ConnConfig.Host = dbCfg.PgHost
@@ -104,10 +104,17 @@ func openDB(ctx context.Context, dbCfg *DBConfig) (*pgxpool.Pool, error) {
 	config.ConnConfig.User = dbCfg.PgUser
 	config.ConnConfig.Password = dbCfg.PgPassword
 
-	pool, err := pgxpool.NewWithConfig(ctx, config)
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
-		return nil, fmt.Errorf("error with ping pool: %w", err)
+	pool, err := pgxpool.NewWithConfig(
+		ctx,
+		config,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("apiserver: %w", err)
+	}
+
+	err = pool.Ping(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("apiserver: %w", err)
 	}
 
 	return pool, nil

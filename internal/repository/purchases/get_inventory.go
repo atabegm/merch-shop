@@ -12,11 +12,12 @@ func (r *Repo) GetInventory(ctx context.Context, userID int64) ([]model.Inventor
 		ctx,
 		`
 		SELECT 
-			m.name
+			m.name,
 			COUNT(*)
 		FROM purchases p
 		JOIN merch m ON m.id = p.merch_id
 		WHERE p.user_id = $1
+		GROUP BY(m.name)
 		`,
 		userID,
 	)
@@ -46,5 +47,5 @@ func (r *Repo) GetInventory(ctx context.Context, userID int64) ([]model.Inventor
 		return nil, fmt.Errorf("rows err inv item: %w", err)
 	}
 
-	return nil, nil
+	return inventory, nil
 }

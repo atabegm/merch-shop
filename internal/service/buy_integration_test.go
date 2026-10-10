@@ -23,7 +23,6 @@ func TestService_Buy_Integration_Test(t *testing.T) {
 	pool := newTestDB(t)
 	logger := logrus.New()
 	ctx := context.Background()
-
 	transactor := manager.Must(
 		pgxv5.NewDefaultFactory(pool),
 	)

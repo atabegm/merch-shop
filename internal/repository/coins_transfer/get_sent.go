@@ -14,7 +14,7 @@ func (r *Repo) GetSent(ctx context.Context, userID int64) ([]model.SentTransacti
 		SELECT 
 			u.username,
 			ct.amount
-		FROM coins_transfers ct
+		FROM coin_transfers ct
 		JOIN users u ON u.id = ct.receiver_id 
 		WHERE ct.sender_id = $1
 		`,
@@ -39,6 +39,9 @@ func (r *Repo) GetSent(ctx context.Context, userID int64) ([]model.SentTransacti
 		}
 
 		sentTransactions = append(sentTransactions, sentTr)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("get sent: %w", err)
 	}
 
 	return sentTransactions, nil

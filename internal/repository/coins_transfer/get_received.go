@@ -14,7 +14,7 @@ func (r *Repo) GetReceived(ctx context.Context, userID int64) ([]model.ReceivedT
 		SELECT 
 			u.username,
 			ct.amount
-		FROM coins_transfers ct
+		FROM coin_transfers ct
 		JOIN users u ON u.id = ct.sender_id
 		WHERE ct.receiver_id = $1
 		`,
@@ -30,7 +30,7 @@ func (r *Repo) GetReceived(ctx context.Context, userID int64) ([]model.ReceivedT
 	for rows.Next() {
 		var receivedTr model.ReceivedTransaction
 
-		err := rows.Scan(
+		err = rows.Scan(
 			&receivedTr.FromUser,
 			&receivedTr.Amount,
 		)
@@ -39,6 +39,9 @@ func (r *Repo) GetReceived(ctx context.Context, userID int64) ([]model.ReceivedT
 		}
 
 		receivedTransactions = append(receivedTransactions, receivedTr)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("get receiver: %w", err)
 	}
 
 	return receivedTransactions, nil

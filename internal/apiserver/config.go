@@ -5,6 +5,7 @@ import (
 	"strconv"
 )
 
+// Config create.
 type Config struct {
 	BindAddr string `yaml:"bind_addr"`
 	LogLevel string `yaml:"log_level"`
@@ -18,8 +19,9 @@ type Config struct {
 	SMTPFrom string `yaml:"-"`
 }
 
+// DBConfig create.
 type DBConfig struct {
-	PgUser     string 
+	PgUser     string
 	PgPassword string
 	PgHost     string
 	PgPort     uint16
@@ -27,6 +29,7 @@ type DBConfig struct {
 	PgSSLMode  string
 }
 
+// NewConfig constr create.
 func NewConfig() *Config {
 	return &Config{
 		KafkaBroker: os.Getenv("KAFKA_BROKERS"),
@@ -36,6 +39,7 @@ func NewConfig() *Config {
 	}
 }
 
+// NewDBConfig constr create.
 func NewDBConfig() *DBConfig {
 	port, err := strconv.ParseUint(
 		os.Getenv("DATABASE_PORT"),

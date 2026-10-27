@@ -10,15 +10,13 @@ RUN go mod download
 
 COPY . .
 
-RUN mkdir -p /build
-
 RUN go build -o /build/shop-service ./cmd/app
 
-RUN go build -o /build/consumer ./cmd/consumer
+RUN go build -o /build/shop-service ./cmd/consumer
 
 FROM alpine:3.21
 
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-sertificates tzdata
 
 WORKDIR /app
 
@@ -29,4 +27,5 @@ COPY configs /app/configs
 
 EXPOSE 8080
 
-CMD ["/app/shop-service"]
+CMD ["app/shop-service"]
+

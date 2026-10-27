@@ -1,6 +1,6 @@
-include .env
+-include .env
 
-.PHONY: build test migrate-create migrate-up migrate-down docker-up docker-build docker-down mocks
+.PHONY: build test migrate-create migrate-up migrate-down docker-up docker-build docker-down mocks-service mocks-api
 .DEFAULT_GOAL: test
 
 test: 
@@ -8,10 +8,10 @@ test:
 
 build:
 	go build -v -o ./bin/app ./cmd/app
-	go build -v -0 ./bin/consumer ./cmd/consumer
+	go build -v -o ./bin/consumer ./cmd/consumer
 
 migrate-create: 
-	migrate create -ext sql -dir migrations second migration
+	migrate create -ext sql -dir migrations -seq $(NAME)
 
 migrate-up:
 	migrate -path migrations -database "$(DATABASE_URL)" up

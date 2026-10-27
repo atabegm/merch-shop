@@ -2,21 +2,20 @@
 
 Backend-сервис магазина мерча на Go.
 
-Пользователь получает 1000 монет после регистрации, может покупать мерч, переводить монеты другим пользователям и смотреть баланс, инвентарь и историю переводов.
+При первой авторизации пользователь получает 1000 монет. Монеты можно тратить на мерч или переводить другим пользователям. Также доступны просмотр баланса, инвентаря и истории переводов.
 
-После покупки сервис отправляет событие в Kafka. Отдельный consumer получает событие и отправляет email через SMTP. Для локальной проверки почты используется Mailpit.
+После покупки сервис публикует событие в Kafka. Отдельный consumer получает событие и отправляет email через SMTP. Для локальной проверки писем используется Mailpit.
 
 ## Стек
 
 - Go
-- PostgreSQL
-- pgx
+- PostgreSQL, pgx
 - JWT
 - Apache Kafka
-- Mailpit
-- Docker Compose
-- gomock
-- testify
+- `avito-tech/go-transaction-manager`
+- Docker, Docker Compose
+- Mailpit (SMTP)
+- gomock, testify
 
 ## API
 
@@ -24,8 +23,7 @@ Backend-сервис магазина мерча на Go.
 
 `POST /api/auth`
 
-При первой авторизации пользователь создаётся автоматически.  
-Если пользователь уже существует и передал новый email, email обновляется.
+При первой авторизации пользователь создаётся автоматически и получает 1000 монет. Если пользователь уже существует и передал новый email, адрес обновляется.
 
 ### Информация о пользователе
 
@@ -37,7 +35,7 @@ Backend-сервис магазина мерча на Go.
 
 `POST /api/send`
 
-Пример:
+Пример запроса:
 
 ```json
 {
@@ -50,53 +48,101 @@ Backend-сервис магазина мерча на Go.
 
 `GET /api/buy/{item}`
 
-После успешной покупки монеты списываются, покупка сохраняется в БД и событие отправляется в Kafka.
+После успешной покупки монеты списываются, покупка сохраняется в PostgreSQL, а событие публикуется в Kafka. Consumer обрабатывает его и отправляет письмо через SMTP.
 
-Consumer получает событие и отправляет письмо через SMTP.
+Дополнительное описание API находится в файлах `schema.yaml` и `schema.json`.
 
-## Запуск
+## Транзакции
 
-Создать `.env` на основе `.env_example`.
+Для операций покупки мерча и перевода монет используется библиотека `avito-tech/go-transaction-manager` с драйвером `pgx/v5`. Она управляет транзакциями PostgreSQL, позволяя выполнить связанные изменения базы данных в рамках одной транзакции.
 
-Поднять PostgreSQL:
+## Инструкция по запуску
+
+Для запуска необходимы Docker с Docker Compose, Go, `make` и установленная утилита `golang-migrate` (команда `migrate`).
+
+1. Склонировать репозиторий и перейти в директорию проекта:
+
+   ```bash
+   git clone https://github.com/atabegm/merch-shop.git
+   cd merch-shop
+   ```
+
+2. Создать файл `.env` на основе `.env_example`:
+
+   ```bash
+   cp .env_example .env
+   ```
+
+3. Запустить PostgreSQL:
+
+   ```bash
+   docker compose up -d db
+   ```
+
+4. Применить миграции базы данных:
+
+   ```bash
+   make migrate-up
+   ```
+
+5. Собрать и запустить приложение и остальные сервисы:
+
+   ```bash
+   make docker-build
+   ```
+
+После запуска доступны:
+
+- API: http://localhost:8080
+- Mailpit: http://localhost:8025
+
+При запуске миграций с компьютера PostgreSQL доступен по адресу `localhost:5433`. Контейнеры приложения используют внутренний адрес `db:5432`.
+
+## Запуск тестов
+
+В проекте есть unit-тесты API и сервисного слоя, а также интеграционные тесты с PostgreSQL и Mailpit.
+
+Для запуска всех тестов:
+
+1. Запустить PostgreSQL и Mailpit:
+
+   ```bash
+   docker compose up -d db mailpit
+   ```
+
+2. Применить миграции (если ещё не применены):
+
+   ```bash
+   make migrate-up
+   ```
+
+3. Запустить тесты:
+
+   ```bash
+   make test
+   ```
+
+Команда `make test` запускает `go test` с флагом `-race` для проверки гонок данных.
+
+## Остановка
+
+Для остановки и удаления контейнеров:
 
 ```bash
-docker compose up -d db
+make docker-down
 ```
 
-Применить миграции:
+Остальные команды доступны в `Makefile`.
 
-```bash
-make migrate-up
-```
-
-Запустить проект:
-
-```bash
-docker compose up -d --build
-```
-
-API: `http://localhost:8080`
-
-Mailpit: `http://localhost:8025`
-
-## Тесты
-
-В проекте есть unit-тесты сервисного и API-слоя, а также интеграционные тесты с PostgreSQL и Mailpit.
-
-```bash
-go test -v ./...
-```
-
-## Структура
+## Структура проекта
 
 ```text
-cmd/app              - API
-cmd/consumer         - Kafka consumer
-internal/api         - HTTP handlers
-internal/service     - бизнес-логика
-internal/repository  - работа с PostgreSQL
-internal/kafka       - producer и consumer
-internal/model       - модели
-migrations           - миграции
+cmd/app              — HTTP API
+cmd/consumer         — Kafka consumer
+internal/api         — HTTP-обработчики
+internal/service     — бизнес-логика
+internal/repository  — работа с PostgreSQL
+internal/kafka       — Kafka producer и consumer
+internal/model       — модели
+migrations           — SQL-миграции
 ```

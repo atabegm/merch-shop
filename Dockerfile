@@ -12,12 +12,11 @@ COPY . .
 
 RUN go build -o /build/shop-service ./cmd/app
 
-RUN go build -o /build/shop-service ./cmd/consumer
+RUN go build -o /build/consumer ./cmd/consumer
 
 FROM alpine:3.21
 
-RUN apk add --no-cache ca-sertificates tzdata
-
+RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 
 COPY --from=builder /build/shop-service /app/shop-service
